@@ -1,0 +1,18 @@
+# Railway Deployment Configuration
+# Deploy: railway up
+
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+healthcheckPath = "/api/health"
+healthcheckTimeout = 600
+restartPolicyType = "ON_FAILURE"
+
+[deploy.env]
+PORT = "5001"
+PYTHONPATH = "/app"
+
+[[deploy.mounts]]
+source = "/app/app/models"
+target = "/app/app/models"

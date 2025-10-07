@@ -1,5 +1,10 @@
 // Configuration   RING_PROPAGATION_SPEED: 0.5,
 export const CONFIG = {
+  // API Configuration - automatically detects environment
+  API_BASE_URL: window.location.hostname === 'localhost' 
+    ? 'http://localhost:5001/api' 
+    : 'https://bloomblyapi-production.up.railway.app/api',
+  
   GEOJSON_FILES: ['../data/geojson/flowering_sites.geojson'],
   COUNTRIES_GEOJSON_URL: 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json',
   CLOUDS_IMAGE_URL: '/clouds.png',

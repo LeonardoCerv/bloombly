@@ -25,8 +25,60 @@ async function init() {
   // Load country borders
   await loadCountryBorders();
   
-  // Note: Data is now loaded via sidebar buttons, not automatically
-  console.log('Application initialized. Use unified sidebar to load data or predictions.');
+  // Auto-load flowering sites dataset
+  console.log('Auto-loading flowering sites dataset...');
+  await autoLoadFloweringSites();
+}
+
+// Auto-load flowering sites dataset on app initialization
+async function autoLoadFloweringSites() {
+  try {
+    const response = await fetch('../data/geojson/flowering_sites.geojson');
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    console.log('Flowering sites dataset loaded:', data);
+    
+    const allFeatures = (data.features || []).filter(feature => {
+      const hasProps = feature.properties && feature.properties.Family && feature.properties.Genus && feature.properties.Season;
+      return hasProps;
+    });
+
+    if (allFeatures.length === 0) {
+      console.warn('No valid features found in flowering sites dataset');
+      return;
+    }
+
+    state.geojsonFeatures = allFeatures;
+    state.pointsData = allFeatures.map(createPointFromFeature);
+    state.allFamilies = new Set(allFeatures.map(f => f.properties.Family));
+    state.allGenus = new Set(allFeatures.map(f => f.properties.Genus));
+    state.selectedFamilies = new Set(state.allFamilies);
+    state.selectedGenus = new Set(state.allGenus);
+    
+    // Build genus to family mapping
+    state.genusToFamily.clear();
+    allFeatures.forEach(f => {
+      state.genusToFamily.set(f.properties.Genus, f.properties.Family);
+    });
+    
+    // Initialize family colors
+    initializeFamilyColors();
+    
+    // Build timeline
+    buildTimelineSteps();
+    
+    // Switch to points mode and update display
+    switchToPointsMode();
+    
+    console.log('Auto-loaded', state.pointsData.length, 'flowering site points');
+  } catch (error) {
+    console.error('Error auto-loading flowering sites dataset:', error);
+    // Don't show alert on auto-load failure, just log it
+  }
 }
 
 // Legacy function - kept for reference but no longer used on init

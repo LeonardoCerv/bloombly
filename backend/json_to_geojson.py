@@ -123,6 +123,10 @@ for family in os.listdir('../data/jsonl'):
         
         # Group by year and season
         for (year, season), group_df in df.groupby(['year', 'season']):
+            # Filter for years 1980-2025 only
+            if year < 1980 or year > 2025:
+                continue
+                
             # Collect points
             points = [(row['long'], row['lat']) for _, row in group_df.iterrows() 
                      if pd.notna(row['long']) and pd.notna(row['lat'])]

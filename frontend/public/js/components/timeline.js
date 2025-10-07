@@ -71,6 +71,29 @@ function updateTimelineDisplay() {
   document.getElementById('currentSeason').textContent = currentStep.season;
   document.getElementById('currentYear').textContent = currentStep.year;
   
+  // Show prediction indicator if we're showing prediction data
+  const timelineLabel = document.getElementById('timelineLabel');
+  const existingIndicator = timelineLabel.querySelector('.prediction-indicator');
+  
+  if (state.geojsonFeatures && state.geojsonFeatures.length > 0 && 
+      state.geojsonFeatures[0].properties && 
+      state.geojsonFeatures[0].properties.confidence !== undefined) {
+    // We're showing prediction data
+    if (!existingIndicator) {
+      const indicator = document.createElement('span');
+      indicator.className = 'prediction-indicator';
+      indicator.innerHTML = ' 🔮';
+      indicator.style.color = '#4ed9d9';
+      indicator.title = 'Showing ML Predictions';
+      timelineLabel.appendChild(indicator);
+    }
+  } else {
+    // We're showing observational data
+    if (existingIndicator) {
+      existingIndicator.remove();
+    }
+  }
+  
   // Update step button states
   document.getElementById('prevStepBtn').disabled = state.currentTimelineIndex === 0;
   document.getElementById('nextStepBtn').disabled = state.currentTimelineIndex === state.timelineSteps.length - 1;

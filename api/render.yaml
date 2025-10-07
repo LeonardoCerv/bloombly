@@ -1,0 +1,19 @@
+# Render.com service configuration
+# Create this service on render.com dashboard
+
+services:
+  - type: web
+    name: bloombly-api
+    env: python
+    buildCommand: "./render-build.sh"
+    startCommand: "cd app && python main.py"
+    plan: free  # or starter ($7/month)
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: DEBUG
+        value: false
+      - key: EE_PROJECT
+        sync: false  # Set manually in dashboard
+      - key: GOOGLE_APPLICATION_CREDENTIALS_JSON
+        sync: false  # Set manually in dashboard

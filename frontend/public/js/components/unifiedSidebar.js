@@ -1,5 +1,5 @@
 import { state } from '../state.js';
-import { COLOR_MODE, DISPLAY_MODE } from '../config.js';
+import { CONFIG, COLOR_MODE, DISPLAY_MODE } from '../config.js';
 import { switchToHexMode, switchToPointsMode, toggleCloudsVisibility, refreshGlobeColors, applyGlobeStyle, setNightSkyBackground, removeNightSkyBackground } from '../globe.js';
 import { applyTimelineFilter } from './timeline.js';
 import { showMetricsCard, updateMetrics } from './metricsCard.js';
@@ -189,11 +189,7 @@ function renderDatasetContent() {
     <div class="filter-section">
       <h4>Dataset</h4>
       <select id="datasetSelect" style="width: 100%; padding: 4px; background: #121418; color: #FFFFFF; border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 6px; outline: none;">
-        <option value="">-- Choose Dataset --</option>
-        <option value="blooms">Bloom Observations</option>
-        <option value="flowering_sites">Flowering Sites</option>
-        <option value="wildflower_aoi">Wildflower AOI</option>
-        <option value="kaggle">Kaggle Cherry Blossom 2024</option>
+        <option value="flowering_sites" selected>Flowering Sites</option>
       </select>
       
       <button id="loadDatasetBtn" class="load-dataset-btn">
@@ -336,16 +332,42 @@ function renderPredictionContent() {
     </div>
     
     <div class="filter-section">
-      <h4>Date Range</h4>
-      <div style="display: flex; flex-direction: column; gap: 8px;">
+      <h4>Time Range</h4>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
         <div>
-          <label style="font-size: 9px; color: rgba(255, 255, 255, 0.7); display: block; margin-bottom: 2px;">From:</label>
-          <input type="date" id="predStartDateInput" value="2025-10-05" style="width: 100%; padding: 6px; background: #121418; color: #FFFFFF; border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 6px; outline: none; box-sizing: border-box; font-size: 11px;">
+          <label style="font-size: 9px; color: rgba(255, 255, 255, 0.7); display: block; margin-bottom: 2px;">Start Season:</label>
+          <select id="predStartSeasonInput" style="width: 100%; padding: 4px; background: #121418; color: #FFFFFF; border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 6px; outline: none; box-sizing: border-box; font-size: 11px;">
+            <option value="Spring">Spring</option>
+            <option value="Summer">Summer</option>
+            <option value="Fall" selected>Fall</option>
+            <option value="Winter">Winter</option>
+          </select>
         </div>
         <div>
-          <label style="font-size: 9px; color: rgba(255, 255, 255, 0.7); display: block; margin-bottom: 2px;">To:</label>
-          <input type="date" id="predEndDateInput" placeholder="Optional" style="width: 100%; padding: 6px; background: #121418; color: #FFFFFF; border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 6px; outline: none; box-sizing: border-box; font-size: 11px;">
+          <label style="font-size: 9px; color: rgba(255, 255, 255, 0.7); display: block; margin-bottom: 2px;">Start Year:</label>
+          <input type="number" id="predStartYearInput" min="2020" max="2030" value="2025" style="width: 100%; padding: 4px; background: #121418; color: #FFFFFF; border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 6px; outline: none; box-sizing: border-box; font-size: 11px;">
         </div>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
+        <div>
+          <label style="font-size: 9px; color: rgba(255, 255, 255, 0.7); display: block; margin-bottom: 2px;">End Season:</label>
+          <select id="predEndSeasonInput" style="width: 100%; padding: 4px; background: #121418; color: #FFFFFF; border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 6px; outline: none; box-sizing: border-box; font-size: 11px;">
+            <option value="">Same as start</option>
+            <option value="Spring">Spring</option>
+            <option value="Summer">Summer</option>
+            <option value="Fall">Fall</option>
+            <option value="Winter" selected>Winter</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size: 9px; color: rgba(255, 255, 255, 0.7); display: block; margin-bottom: 2px;">End Year:</label>
+          <input type="number" id="predEndYearInput" min="2020" max="2030" placeholder="Same as start" style="width: 100%; padding: 4px; background: #121418; color: #FFFFFF; border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 6px; outline: none; box-sizing: border-box; font-size: 11px;">
+        </div>
+      </div>
+      <div style="margin-top: 4px;">
+        <button id="useCurrentTimelineBtn" style="width: 100%; padding: 4px; background: rgba(78, 217, 217, 0.1); color: #4ed9d9; border: 1px solid rgba(78, 217, 217, 0.3); border-radius: 4px; font-size: 10px; cursor: pointer;">
+          📅 Use Current Timeline
+        </button>
       </div>
     </div>
       
@@ -362,10 +384,15 @@ function renderPredictionContent() {
     document.getElementById('predStateOptions').style.display = aoiType === 'state' ? 'block' : 'none';
   });
   
-  // Auto-focus to end date when start date is filled
-  document.getElementById('predStartDateInput').addEventListener('change', (e) => {
-    if (e.target.value) {
-      document.getElementById('predEndDateInput').focus();
+  // Use current timeline button
+  document.getElementById('useCurrentTimelineBtn').addEventListener('click', () => {
+    if (state.timelineSteps && state.timelineSteps.length > 0) {
+      const currentStep = state.timelineSteps[state.currentTimelineIndex];
+      document.getElementById('predStartSeasonInput').value = currentStep.season;
+      document.getElementById('predStartYearInput').value = currentStep.year;
+      // Clear end values to use same as start
+      document.getElementById('predEndSeasonInput').value = '';
+      document.getElementById('predEndYearInput').value = '';
     }
   });
   
@@ -449,10 +476,7 @@ async function loadDatasetData() {
   }
   
   const datasetPaths = {
-    'blooms': '../data/processed/blooms.geojson',
-    'flowering_sites': '../data/geojson/flowering_sites.geojson',
-    'wildflower_aoi': '../data/geojson/WildflowerBlooms_AreaOfInterest.geojson',
-    'kaggle': '../data/geojson/kaggle.geojson'
+    'flowering_sites': '../data/geojson/flowering_sites.geojson'
   };
   
   const filePath = datasetPaths[datasetName];
@@ -548,18 +572,38 @@ async function loadDatasetData() {
 }
 
 // Prediction fetching function
+// Helper function to convert season/year to date for API
+function seasonYearToDate(season, year) {
+  const seasonDates = {
+    'Spring': '03-01',
+    'Summer': '06-01', 
+    'Fall': '09-01',
+    'Winter': '12-01'
+  };
+  return `${year}-${seasonDates[season] || '01-01'}`;
+}
+
+// Prediction fetching function
 async function fetchPredictionData() {
   const aoiType = document.getElementById('predAoiTypeSelect').value;
-  const startDate = document.getElementById('predStartDateInput').value;
-  const endDate = document.getElementById('predEndDateInput').value;
+  const startSeason = document.getElementById('predStartSeasonInput').value;
+  const startYear = document.getElementById('predStartYearInput').value;
+  const endSeason = document.getElementById('predEndSeasonInput').value;
+  const endYear = document.getElementById('predEndYearInput').value;
   const confidence = document.getElementById('predConfidenceInput').value;
   const numPredictions = document.getElementById('predNumPredictionsInput').value;
   const btn = document.getElementById('predFetchDataBtn');
 
-  if (!startDate) {
-    alert('Please enter a start date');
+  if (!startSeason || !startYear) {
+    alert('Please enter start season and year');
     return;
   }
+
+  // Convert season/year to dates for API
+  const startDate = seasonYearToDate(startSeason, startYear);
+  const finalEndSeason = endSeason || startSeason;
+  const finalEndYear = endYear || startYear;
+  const endDate = seasonYearToDate(finalEndSeason, finalEndYear);
 
   const params = {
     aoi_type: aoiType,
@@ -569,8 +613,8 @@ async function fetchPredictionData() {
     num_predictions: numPredictions
   };
   
-  // Add end date only if provided
-  if (endDate) {
+  // Add end date if different from start
+  if (endDate !== startDate) {
     params.end_date = endDate;
   }
   
@@ -601,10 +645,11 @@ async function fetchPredictionData() {
   }
   
   const qs = new URLSearchParams(params).toString();
-  const API_BASE_URL = 'http://localhost:5001/api';
+  const API_BASE_URL = CONFIG.API_BASE_URL;
   const apiUrl = `${API_BASE_URL}/predict/blooms?${qs}`;
   
   console.log('Fetching predictions from:', apiUrl);
+  console.log(`Season/Year range: ${startSeason} ${startYear} to ${finalEndSeason} ${finalEndYear}`);
 
   const originalText = btn.textContent;
   btn.textContent = 'Loading...';
@@ -627,7 +672,16 @@ async function fetchPredictionData() {
     });
 
     if (allFeatures.length === 0) {
-      alert('No bloom predictions found. Try a different location or date.');
+      alert(`No bloom predictions found for ${startSeason} ${startYear}. Try a different location or season.`);
+      btn.textContent = 'No Results';
+      btn.classList.remove('loading');
+      btn.classList.add('error');
+      
+      setTimeout(() => {
+        btn.textContent = originalText;
+        btn.classList.remove('error');
+        btn.disabled = false;
+      }, 2000);
       return;
     }
 
@@ -661,6 +715,9 @@ async function fetchPredictionData() {
     // Show advanced filters card
     showAdvancedFilters();
     
+    // Auto-update timeline to match prediction timeframe
+    updateTimelineToMatchPredictions(startSeason, startYear);
+    
     btn.textContent = 'Loaded ✓';
     btn.classList.remove('loading');
     btn.classList.add('success');
@@ -671,7 +728,7 @@ async function fetchPredictionData() {
       btn.disabled = false;
     }, 1500);
     
-    console.log('Globe updated with', state.pointsData.length, 'predictions');
+    console.log(`Globe updated with ${state.pointsData.length} predictions for ${startSeason} ${startYear}`);
   } catch (err) {
     console.error('Fetch failed:', err);
     
@@ -686,6 +743,32 @@ async function fetchPredictionData() {
     }, 2000);
     
     alert('Error loading predictions: ' + err.message);
+  }
+}
+
+// Helper function to update timeline to match prediction timeframe
+function updateTimelineToMatchPredictions(season, year) {
+  if (state.timelineSteps && state.timelineSteps.length > 0) {
+    // Find the matching timeline step
+    const targetIndex = state.timelineSteps.findIndex(
+      step => step.season === season && step.year === parseInt(year)
+    );
+    
+    if (targetIndex !== -1) {
+      state.currentTimelineIndex = targetIndex;
+      // Import and call the timeline update function
+      import('./timeline.js').then(({ applyTimelineFilter }) => {
+        // Update the timeline display
+        const currentStep = state.timelineSteps[state.currentTimelineIndex];
+        document.getElementById('currentSeason').textContent = currentStep.season;
+        document.getElementById('currentYear').textContent = currentStep.year;
+        
+        // Apply the timeline filter to sync with the prediction data
+        applyTimelineFilter();
+        
+        console.log(`Timeline updated to: ${season} ${year}`);
+      });
+    }
   }
 }
 
