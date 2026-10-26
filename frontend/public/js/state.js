@@ -112,8 +112,8 @@ const FAMILY_COLOR_OVERRIDES = {
 export const state = {
   geojsonFeatures: [],
   pointsData: [],
-  currentColorMode: COLOR_MODE.DEFAULT,
-  currentDisplayMode: DISPLAY_MODE.POINTS,
+  currentColorMode: COLOR_MODE.SEASON,
+  currentDisplayMode: DISPLAY_MODE.DENSITY,
   cloudsMesh: null,
   ringsEnabled: false,
   allFamilies: new Set(),

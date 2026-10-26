@@ -1,6 +1,7 @@
 import { state } from '../state.js';
 import { COLOR_MODE, DISPLAY_MODE, CONFIG } from '../config.js';
-import { switchToHexMode, switchToPointsMode, switchToDensityMode, toggleCloudsVisibility, refreshGlobeColors, applyGlobeStyle, setNightSkyBackground, removeNightSkyBackground } from '../globe.js';
+import { switchToHexMode, switchToPointsMode, switchToDensityMode, refreshGlobeColors, applyGlobeStyle } from '../globe.js';
+import { updateVizLegend } from './legend.js';
 import { applyTimelineFilter } from './timeline.js';
 import { showMetricsCard, updateMetrics } from './metricsCard.js';
 
@@ -38,7 +39,7 @@ export function initUnifiedSidebar() {
           <div class="switcher-container">
             <button class="switcher-prev" data-target="pointStyleSwitcher">‹</button>
             <div class="style-switcher" id="pointStyleSwitcher" data-current="0">
-              <span class="switcher-value">Points</span>
+              <span class="switcher-value">Density</span>
             </div>
             <button class="switcher-next" data-target="pointStyleSwitcher">›</button>
           </div>
@@ -50,7 +51,7 @@ export function initUnifiedSidebar() {
           <div class="switcher-container">
             <button class="switcher-prev" data-target="pointColorSwitcher">‹</button>
             <div class="style-switcher" id="pointColorSwitcher" data-current="0">
-              <span class="switcher-value">Single Color</span>
+              <span class="switcher-value">By Season</span>
             </div>
             <button class="switcher-next" data-target="pointColorSwitcher">›</button>
           </div>
@@ -65,16 +66,6 @@ export function initUnifiedSidebar() {
               <span class="switcher-value">Normal</span>
             </div>
             <button class="switcher-next" data-target="globeStyleSwitcher">›</button>
-          </div>
-          <div class="toggle-row">
-            <label class="toggle-option">
-              <input type="checkbox" id="toggleNightSky">
-              <span>Night Sky</span>
-            </label>
-            <label class="toggle-option">
-              <input type="checkbox" id="toggleClouds">
-              <span>Clouds</span>
-            </label>
           </div>
         </div>
       </div>
@@ -101,7 +92,7 @@ function attachUnifiedSidebarEventListeners() {
   
   // Point style switcher
   const pointStyleSwitcher = document.getElementById('pointStyleSwitcher');
-  const pointStyleOptions = ['Points', 'Hexagons', 'Rings', 'Density'];
+  const pointStyleOptions = ['Density', 'Points', 'Hexagons', 'Rings'];
   
   document.querySelectorAll('[data-target="pointStyleSwitcher"]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -118,7 +109,7 @@ function attachUnifiedSidebarEventListeners() {
   
   // Point color switcher
   const pointColorSwitcher = document.getElementById('pointColorSwitcher');
-  const pointColorOptions = ['Single Color', 'By Family', 'By Genus', 'Climate Shift'];
+  const pointColorOptions = ['By Season', 'Climate Shift', 'By Family', 'By Genus', 'Single Color'];
   
   document.querySelectorAll('[data-target="pointColorSwitcher"]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -149,10 +140,6 @@ function attachUnifiedSidebarEventListeners() {
       handleGlobeStyleChange(next);
     });
   });
-  
-  // Globe toggle checkboxes
-  document.getElementById('toggleNightSky').addEventListener('change', handleToggleNightSky);
-  document.getElementById('toggleClouds').addEventListener('change', handleToggleClouds);
 }
 
 function switchMode(mode) {
@@ -374,56 +361,48 @@ function renderPredictionContent() {
 // Common control handlers
 function handlePointStyleChange(index) {
   if (index === 0) {
-    state.currentDisplayMode = DISPLAY_MODE.POINTS;
-    state.ringsEnabled = false;
-    switchToPointsMode();
-  } else if (index === 1) {
-    state.currentDisplayMode = DISPLAY_MODE.HEX;
-    state.ringsEnabled = false;
-    switchToHexMode();
-  } else if (index === 2) {
-    state.currentDisplayMode = DISPLAY_MODE.POINTS;
-    state.ringsEnabled = true;
-    switchToPointsMode();
-  } else if (index === 3) {
     state.currentDisplayMode = DISPLAY_MODE.DENSITY;
     state.ringsEnabled = false;
     switchToDensityMode();
+  } else if (index === 1) {
+    state.currentDisplayMode = DISPLAY_MODE.POINTS;
+    state.ringsEnabled = false;
+    switchToPointsMode();
+  } else if (index === 2) {
+    state.currentDisplayMode = DISPLAY_MODE.HEX;
+    state.ringsEnabled = false;
+    switchToHexMode();
+  } else if (index === 3) {
+    state.currentDisplayMode = DISPLAY_MODE.POINTS;
+    state.ringsEnabled = true;
+    switchToPointsMode();
   }
 
   refreshGlobeColors();
+  updateVizLegend();
 }
 
 function handlePointColorChange(index) {
   if (index === 0) {
-    state.currentColorMode = COLOR_MODE.DEFAULT;
+    state.currentColorMode = COLOR_MODE.SEASON;
   } else if (index === 1) {
-    state.currentColorMode = COLOR_MODE.FAMILY;
-  } else if (index === 2) {
-    state.currentColorMode = COLOR_MODE.GENUS;
-  } else if (index === 3) {
     state.currentColorMode = COLOR_MODE.CLIMATE;
+  } else if (index === 2) {
+    state.currentColorMode = COLOR_MODE.FAMILY;
+  } else if (index === 3) {
+    state.currentColorMode = COLOR_MODE.GENUS;
+  } else if (index === 4) {
+    state.currentColorMode = COLOR_MODE.DEFAULT;
   }
 
   updateLegend();
   refreshGlobeColors();
+  updateVizLegend();
 }
 
 function handleGlobeStyleChange(index) {
   const styles = ['normal', 'detailed', 'plain'];
   applyGlobeStyle(styles[index]);
-}
-
-function handleToggleNightSky(e) {
-  if (e.target.checked) {
-    setNightSkyBackground();
-  } else {
-    removeNightSkyBackground();
-  }
-}
-
-function handleToggleClouds(e) {
-  toggleCloudsVisibility();
 }
 
 function handleFilterTypeChange(index) {
@@ -515,7 +494,14 @@ async function loadDatasetData() {
     buildTimelineSteps();
     createFilterUI();
     updateLegend();
-    switchToPointsMode();
+    // Render in the active display mode (density by default)
+    if (state.currentDisplayMode === DISPLAY_MODE.DENSITY) {
+      switchToDensityMode();
+    } else if (state.currentDisplayMode === DISPLAY_MODE.HEX) {
+      switchToHexMode();
+    } else {
+      switchToPointsMode();
+    }
 
     // Fly the camera to the data so it's actually in view, zoomed to how spread-out it is
     // (localized sets like the Japan cherry blossoms zoom in; the global set zooms out).
@@ -536,6 +522,8 @@ async function loadDatasetData() {
 
     // Show filter sections after data is loaded
     document.getElementById('filterSwitcherSection').style.display = 'block';
+
+    updateVizLegend();
     
     // Show and update metrics card
     showMetricsCard();

@@ -40,9 +40,18 @@ export const CONFIG = {
 
 export const COLOR_MODE = {
   DEFAULT: 'default',
+  SEASON: 'season', // color by bloom season (when in the year it flowers)
   FAMILY: 'family',
   GENUS: 'genus',
   CLIMATE: 'climate' // color by bloom-timing deviation vs. baseline (cherry-blossom dataset)
+};
+
+// Season palette — shared by the point coloring, the legend, and the card badges.
+export const SEASON_COLORS = {
+  Spring: '#34d399',
+  Summer: '#fbbf24',
+  Fall:   '#fb923c',
+  Winter: '#7dd3fc'
 };
 
 export const DISPLAY_MODE = {

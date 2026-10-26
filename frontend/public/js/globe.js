@@ -1,4 +1,4 @@
-import { CONFIG, COLOR_MODE, DISPLAY_MODE } from './config.js';
+import { CONFIG, COLOR_MODE, DISPLAY_MODE, SEASON_COLORS } from './config.js';
 import { state } from './state.js';
 
 let globe = null;
@@ -90,6 +90,10 @@ export function getColorForFeature(feature) {
     return '#4ED9D9'; // Bright cyan color for user location
   }
 
+  if (state.currentColorMode === COLOR_MODE.SEASON) {
+    return seasonColor(feature.Season);
+  }
+
   if (state.currentColorMode === COLOR_MODE.CLIMATE) {
     const dev = feature.deviation != null ? feature.deviation : feature.DeviationFromBaseline;
     return climateColor(dev);
@@ -171,11 +175,21 @@ export function createHexPolygonLabel({ properties: data }) {
   `;
 }
 
-// Density heatmap color: cyan (sparse) -> green -> yellow -> red (dense), log-scaled by count.
+// Density heatmap color: perceptual "inferno"-style ramp (deep indigo = sparse ->
+// magenta -> warm gold = dense), log-scaled so a handful of bins don't wash out the rest.
+const DENSITY_STOPS = [[20, 11, 52], [120, 28, 109], [221, 52, 76], [252, 176, 60]];
 function densityColor(count) {
   const t = Math.max(0, Math.min(1, Math.log10(count + 1) / 2.5));
-  const hue = 190 - 190 * t;
-  return `hsla(${hue}, 85%, 55%, 0.82)`;
+  const seg = t * (DENSITY_STOPS.length - 1);
+  const i = Math.min(DENSITY_STOPS.length - 2, Math.floor(seg));
+  const f = seg - i;
+  const a = DENSITY_STOPS[i], b = DENSITY_STOPS[i + 1];
+  const ch = k => Math.round(a[k] + (b[k] - a[k]) * f);
+  return `rgba(${ch(0)}, ${ch(1)}, ${ch(2)}, 0.88)`;
+}
+
+function seasonColor(season) {
+  return SEASON_COLORS[season] || '#9aa5b1';
 }
 
 export function switchToHexMode() {

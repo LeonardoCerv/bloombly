@@ -1,12 +1,13 @@
 import { CONFIG } from './config.js';
 import { state, initializeFamilyColors } from './state.js';
-import { initGlobe, createPointFromFeature, initializeClouds, switchToPointsMode, loadCountryBorders } from './globe.js';
+import { initGlobe, createPointFromFeature, setNightSkyBackground, switchToPointsMode, loadCountryBorders } from './globe.js';
 import { initTopSelector } from './components/topSelector.js';
 import { initUnifiedSidebar } from './components/unifiedSidebar.js';
 import { initTimeline, buildTimelineSteps } from './components/timeline.js';
 import { initDescriptionCard } from './components/descriptionCard.js';
 import { initMetricsCard } from './components/metricsCard.js';
 import { initAdvancedFilters } from './components/advancedFilters.js';
+import { initVizLegend } from './components/legend.js';
 
 // Initialize the application
 async function init() {
@@ -17,10 +18,11 @@ async function init() {
   initDescriptionCard();
   initMetricsCard();
   initAdvancedFilters();
+  initVizLegend();
   
-  // Initialize globe
+  // Initialize globe — always a night-sky backdrop, never clouds (data stays unobscured)
   initGlobe();
-  initializeClouds();
+  setNightSkyBackground();
   
   // Load country borders
   await loadCountryBorders();
