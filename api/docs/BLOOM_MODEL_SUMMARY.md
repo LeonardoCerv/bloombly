@@ -350,6 +350,6 @@ print(f"Found {len(predictions)} predicted bloom sites")
 
 **You wanted it to learn bloom dynamics.** The v2 model does exactly that. It's a proper machine learning model that learns the relationship between environmental conditions, temporal patterns, and bloom occurrence.
 
-Is it perfect? No—it needs more data. But is it scientifically sound and actually learning bloom dynamics? **YES!** 🎯
+Is it perfect? No-it needs more data. But is it scientifically sound and actually learning bloom dynamics? **YES!** 🎯
 
-The model went from **completely broken** to **fundamentally correct**. That's not just an improvement—it's a complete redesign from the ground up.
+The model went from **completely broken** to **fundamentally correct**. That's not just an improvement-it's a complete redesign from the ground up.
