@@ -81,6 +81,8 @@ The whole app is static and lives under `frontend/public`, data included. On Ver
 
 Bloombly started at the NASA Space Apps Challenge as a bloom detection and forecasting project, and the repository still contains that side: a Flask API in `api/` and a training pipeline in `ml/`.
 
+![System architecture: data sources feeding the processing pipeline, the model, the Flask API and the globe frontend](architecture.png)
+
 **Honest status:** the live app is a historical explorer. The forecasting API is not wired into it. Running the API requires a Google Earth Engine service account and a trained model artifact, which is not committed. See [`api/.env.example`](api/.env.example) and [`DEPLOY.md`](DEPLOY.md).
 
 ### Data sources
@@ -171,12 +173,22 @@ Built for the [NASA Space Apps Challenge](https://www.spaceappschallenge.org/), 
 
 Thanks to the NASA Earth Science Division, the Google Earth Engine team, the NASA Space Apps Challenge organizers, the citizen scientists on iNaturalist and GBIF, and the open-source projects this is built on.
 
-## Third-party licenses
+## Contributing
 
-- three.js: MIT
-- globe.gl: MIT
-- scikit-learn: BSD 3-Clause
-- NASA data: public domain (U.S. Government)
+Contributions are welcome! To get started:
+
+```bash
+git clone https://github.com/LeonardoCerv/bloombly.git
+cd bloombly/frontend && npm install && npm start
+```
+
+Then fork the repository, create a branch for your change, commit it, push the branch and open a pull request. Keep the globe usable without the API: it is the part everyone sees.
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE).
+
+Third-party licenses: three.js (MIT), globe.gl (MIT), scikit-learn (BSD 3-Clause), NASA data (public domain, U.S. Government).
 
 ---
 
