@@ -37,3 +37,20 @@ export function updateVizLegend() {
   el.innerHTML = html;
   el.style.display = 'flex';
 }
+
+// A narrative one-liner under the title that reflects what you're currently looking at.
+export function updateStoryCaption() {
+  const el = document.querySelector('.selector-subtitle');
+  if (!el) return;
+  const n = (state.filteredPoints && state.filteredPoints.length) || 0;
+  if (state.timelineActive && state.timelineSteps.length) {
+    const step = state.timelineSteps[state.currentTimelineIndex];
+    el.textContent = `${step.season} ${step.year} · ${n.toLocaleString()} blooms on the map`;
+  } else if (state.currentDisplayMode === DISPLAY_MODE.DENSITY) {
+    el.textContent = `Where Earth blooms — ${n.toLocaleString()} records across five decades`;
+  } else if (state.currentColorMode === COLOR_MODE.SEASON) {
+    el.textContent = `When Earth blooms — every mark colored by its season`;
+  } else {
+    el.textContent = `Fifty years of the planet in bloom`;
+  }
+}

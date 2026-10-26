@@ -54,8 +54,8 @@ export function initGlobe() {
   // guard so a slow init never throws and blanks the page.
   const controls = globe.controls && globe.controls();
   if (controls) {
-    controls.autoRotate = false;
-    controls.autoRotateSpeed = 0.35;
+    controls.autoRotate = true;      // slow idle spin — the globe feels alive
+    controls.autoRotateSpeed = 0.28;
   }
 
   return globe;

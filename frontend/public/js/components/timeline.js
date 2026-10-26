@@ -2,6 +2,7 @@ import { state } from '../state.js';
 import { DISPLAY_MODE } from '../config.js';
 import { switchToHexMode, switchToPointsMode, switchToDensityMode } from '../globe.js';
 import { updateMetrics } from './metricsCard.js';
+import { updateStoryCaption } from './legend.js';
 
 export function initTimeline() {
   const container = document.getElementById('timeline-container');
@@ -179,6 +180,7 @@ export function applyTimelineFilter() {
   
   // Update metrics after filter changes
   updateMetrics();
+  updateStoryCaption();
 }
 
 function goToPreviousStep() {

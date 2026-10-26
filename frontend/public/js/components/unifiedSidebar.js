@@ -1,7 +1,7 @@
 import { state } from '../state.js';
 import { COLOR_MODE, DISPLAY_MODE, CONFIG } from '../config.js';
 import { switchToHexMode, switchToPointsMode, switchToDensityMode, refreshGlobeColors, applyGlobeStyle } from '../globe.js';
-import { updateVizLegend } from './legend.js';
+import { updateVizLegend, updateStoryCaption } from './legend.js';
 import { applyTimelineFilter } from './timeline.js';
 import { showMetricsCard, updateMetrics } from './metricsCard.js';
 
@@ -16,14 +16,15 @@ export function initUnifiedSidebar() {
     <div id="unified-legend">
       <!-- Scrollable Content Area -->
       <div id="scrollableContent">
-        <!-- Mode Switcher -->
-        <div class="filter-section">
+        <!-- Mode Switcher (hidden: prediction tab needs a backend that isn't part of the
+             live demo, so the app is a single historical-exploration experience) -->
+        <div class="filter-section" style="display: none;">
           <div class="mode-switcher-container">
             <button class="mode-btn active" id="datasetModeBtn" data-mode="dataset">Dataset</button>
             <button class="mode-btn" id="predictionModeBtn" data-mode="prediction">Prediction</button>
           </div>
         </div>
-        
+
         <!-- Dataset Tab Content -->
         <div id="datasetTabContent" style="display: block;"></div>
         
@@ -46,7 +47,7 @@ export function initUnifiedSidebar() {
         </div>
         
         <!-- Point Color Section -->
-        <div class="filter-section">
+        <div class="filter-section" id="pointColorSection">
           <h4>Point Color</h4>
           <div class="switcher-container">
             <button class="switcher-prev" data-target="pointColorSwitcher">‹</button>
@@ -375,6 +376,16 @@ function handlePointStyleChange(index) {
 
   refreshGlobeColors();
   updateVizLegend();
+  updateControlsVisibility();
+  updateStoryCaption();
+}
+
+// Point Color is meaningless in Density mode (it colors purely by count), so hide it there.
+function updateControlsVisibility() {
+  const colorSection = document.getElementById('pointColorSection');
+  if (colorSection) {
+    colorSection.style.display = (state.currentDisplayMode === DISPLAY_MODE.DENSITY) ? 'none' : '';
+  }
 }
 
 function handlePointColorChange(index) {
@@ -391,6 +402,7 @@ function handlePointColorChange(index) {
   updateLegend();
   refreshGlobeColors();
   updateVizLegend();
+  updateStoryCaption();
 }
 
 function handleGlobeStyleChange(index) {
@@ -516,6 +528,8 @@ async function loadDatasetData() {
     document.getElementById('filterSwitcherSection').style.display = 'block';
 
     updateVizLegend();
+    updateControlsVisibility();
+    updateStoryCaption();
     
     // Show and update metrics card
     showMetricsCard();
