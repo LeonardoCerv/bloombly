@@ -24,9 +24,16 @@ async function init() {
   
   // Load country borders
   await loadCountryBorders();
-  
-  // Note: Data is now loaded via sidebar buttons, not automatically
-  console.log('Application initialized. Use unified sidebar to load data or predictions.');
+
+  // Auto-load the default dataset so the globe is populated on landing (reuses the exact
+  // "Load Data" code path). The timeline starts inactive, so all years render at once.
+  const datasetSelect = document.getElementById('datasetSelect');
+  const loadBtn = document.getElementById('loadDatasetBtn');
+  if (datasetSelect && loadBtn) {
+    datasetSelect.value = 'flowering_sites';
+    loadBtn.click();
+  }
+  console.log('Application initialized with default dataset.');
 }
 
 // Legacy function - kept for reference but no longer used on init

@@ -24,66 +24,49 @@ export function showDescriptionCard(point, event, coords) {
   
   // Build the card content
   const familyColor = state.familyColors[point.Family] || '#4ED9D9';
-  const genusColor = state.genusColors[point.Genus] || familyColor;
-  
-  // Get the genus image path
   const genusImagePath = point.Genus ? `../images/${point.Genus}.png` : null;
-  
+  const season = point.Season || '';
+  const seasonClass = season ? `dc-season-${season.toLowerCase()}` : '';
+  const latStr = (typeof point.lat === 'number') ? `${point.lat.toFixed(2)}°` : '—';
+  const lngStr = (typeof point.lng === 'number') ? `${point.lng.toFixed(2)}°` : '—';
+
   card.innerHTML = `
-    <div class="card-header">
-      <h3>Bloom Details</h3>
-      <button class="close-btn" id="closeDescriptionCard">✕</button>
-    </div>
-    
-    <div class="card-content">
+    <button class="close-btn" id="closeDescriptionCard" aria-label="Close">✕</button>
+
+    <div class="dc-hero" style="--family-color:${familyColor};">
       ${genusImagePath ? `
-        <div class="genus-image-container">
-          <img src="${genusImagePath}" alt="${point.Genus}" class="genus-image" 
-               onerror="this.style.display='none'; this.parentElement.style.display='none';">
-        </div>
+        <img src="${genusImagePath}" alt="${point.Genus}" class="dc-img"
+             onerror="this.style.display='none'; this.closest('.dc-hero').classList.add('no-img');">
       ` : ''}
-      
-      <div class="taxonomy-row">
-        <div class="taxonomy-item">
-          <span class="label">Family</span>
-          <div class="value-with-color">
-            <div class="color-indicator" style="background-color: ${familyColor};"></div>
-            <span class="value">${point.Family || 'N/A'}</span>
-          </div>
-        </div>
-        
-        <div class="taxonomy-item">
-          <span class="label">Genus</span>
-          <div class="value-with-color">
-            <div class="color-indicator" style="background-color: ${genusColor};"></div>
-            <span class="value">${point.Genus || 'N/A'}</span>
-          </div>
-        </div>
+      <div class="dc-hero-fallback">🌸</div>
+      ${season ? `<span class="dc-season-badge ${seasonClass}">${season}</span>` : ''}
+    </div>
+
+    <div class="dc-body">
+      <div class="dc-title-row">
+        <h3 class="dc-genus">${point.Genus || 'Unknown'}</h3>
+        <div class="dc-family"><span class="dc-dot" style="background:${familyColor};"></span>${point.Family || 'N/A'}</div>
       </div>
-      
-      <div class="data-row">
-        <div class="data-item">
-          <span class="label">Area</span>
-          <span class="value">${point.Area ? point.Area.toFixed(2) + ' km²' : 'N/A'}</span>
+
+      <div class="dc-stats">
+        <div class="dc-stat">
+          <span class="dc-k">Year</span>
+          <span class="dc-v">${point.year != null ? point.year : '—'}</span>
         </div>
-        
-        <div class="data-item">
-          <span class="label">Latitude</span>
-          <span class="value">${point.lat ? point.lat.toFixed(4) + '°' : 'N/A'}</span>
+        <div class="dc-stat">
+          <span class="dc-k">Bloom area</span>
+          <span class="dc-v">${point.Area != null ? point.Area.toFixed(0) + ' km²' : '—'}</span>
         </div>
-        
-        <div class="data-item">
-          <span class="label">Longitude</span>
-          <span class="value">${point.lng ? point.lng.toFixed(4) + '°' : 'N/A'}</span>
+        <div class="dc-stat">
+          <span class="dc-k">Location</span>
+          <span class="dc-v">${latStr}, ${lngStr}</span>
         </div>
+        ${point.confidence != null ? `
+        <div class="dc-stat">
+          <span class="dc-k">Confidence</span>
+          <span class="dc-v dc-conf">${(point.confidence * 100).toFixed(0)}%</span>
+        </div>` : ''}
       </div>
-      
-      ${point.confidence ? `
-        <div class="data-item">
-          <span class="label">Confidence</span>
-          <span class="value confidence-value">${(point.confidence * 100).toFixed(1)}%</span>
-        </div>
-      ` : ''}
     </div>
   `;
   

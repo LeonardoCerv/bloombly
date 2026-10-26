@@ -68,9 +68,15 @@ function updateTimelineDisplay() {
   if (state.timelineSteps.length === 0) return;
   
   const currentStep = state.timelineSteps[state.currentTimelineIndex];
-  document.getElementById('currentSeason').textContent = currentStep.season;
-  document.getElementById('currentYear').textContent = currentStep.year;
-  
+  if (state.timelineActive) {
+    document.getElementById('currentSeason').textContent = currentStep.season;
+    document.getElementById('currentYear').textContent = currentStep.year;
+  } else {
+    const years = state.allYears;
+    document.getElementById('currentSeason').textContent = 'All seasons';
+    document.getElementById('currentYear').textContent = years.length ? `${years[0]}–${years[years.length - 1]}` : '';
+  }
+
   // Update step button states
   document.getElementById('prevStepBtn').disabled = state.currentTimelineIndex === 0;
   document.getElementById('nextStepBtn').disabled = state.currentTimelineIndex === state.timelineSteps.length - 1;
@@ -133,11 +139,14 @@ export function applyTimelineFilter() {
     }
   }
   
-  // Now apply timeline, family, and genus filters on top
+  // Now apply timeline, family, and genus filters on top.
+  // When the timeline is inactive (default landing), show ALL years at once so the
+  // globe is dense; it only narrows to the current (year, season) once the user scrubs/plays.
   state.filteredFeatures = baseFeatures.filter(feature => {
-    const matchesTimeline = feature.properties.year === currentStep.year && 
-                            feature.properties.Season === currentStep.season;
-    
+    const matchesTimeline = !state.timelineActive ||
+                            (feature.properties.year === currentStep.year &&
+                             feature.properties.Season === currentStep.season);
+
     const matchesFamily = state.selectedFamilies.size === 0 || 
                          state.selectedFamilies.has(feature.properties.Family);
     const matchesGenus = state.selectedGenus.size === 0 || 
@@ -171,6 +180,7 @@ export function applyTimelineFilter() {
 }
 
 function goToPreviousStep() {
+  state.timelineActive = true; // scrubbing engages the time machine
   if (state.currentTimelineIndex > 0) {
     state.currentTimelineIndex--;
     updateTimelineDisplay();
@@ -178,6 +188,7 @@ function goToPreviousStep() {
 }
 
 function goToNextStep() {
+  state.timelineActive = true; // scrubbing engages the time machine
   if (state.currentTimelineIndex < state.timelineSteps.length - 1) {
     state.currentTimelineIndex++;
     updateTimelineDisplay();
@@ -205,7 +216,8 @@ function togglePlay(direction) {
   
   state.isPlaying = true;
   state.playDirection = direction;
-  
+  state.timelineActive = true; // playing engages the time machine (step-by-step view)
+
   state.playInterval = setInterval(() => {
     if (direction === 'forward') {
       if (state.currentTimelineIndex < state.timelineSteps.length - 1) {

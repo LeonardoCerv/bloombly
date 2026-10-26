@@ -124,6 +124,7 @@ export const state = {
   allYears: [],
   timelineSteps: [],
   currentTimelineIndex: 0,
+  timelineActive: false, // false = show all years at once (dense default); true = filter to the current step
   isPlaying: false,
   playDirection: null, // 'forward' or 'backward'
   playInterval: null,
