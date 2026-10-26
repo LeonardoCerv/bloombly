@@ -1,10 +1,17 @@
-// Configuration   RING_PROPAGATION_SPEED: 0.5,
+// Configuration
 export const CONFIG = {
-  GEOJSON_FILES: ['../data/geojson/flowering_sites.geojson'],
+  // Optimized ~30k-point sample of the global flowering dataset. The full file
+  // (flowering_sites.geojson, ~467MB / 554k features) freezes the browser — never load it
+  // directly. Regenerate the sample with scripts/sample_blooms.py.
+  GEOJSON_FILES: ['../data/geojson/flowering_sites.sample.geojson'],
   COUNTRIES_GEOJSON_URL: 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json',
+
+  // Base URL of the ML prediction API. On a deployed site set `window.BLOOMBLY_API_URL`
+  // (see index.html) to the API origin; falls back to localhost for local dev.
+  API_BASE_URL: (typeof window !== 'undefined' && window.BLOOMBLY_API_URL) || 'http://localhost:5001/api',
   CLOUDS_IMAGE_URL: '/clouds.png',
-  EARTH_IMAGE_URL: '//cdn.jsdelivr.net/npm/three-globe/example/img/earth-blue-marble.jpg',
-  EARTH_TOPOLOGY_URL: '//cdn.jsdelivr.net/npm/three-globe/example/img/earth-topology.png',
+  EARTH_IMAGE_URL: 'https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-blue-marble.jpg',
+  EARTH_TOPOLOGY_URL: 'https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-topology.png',
   
   CLOUDS_ALTITUDE: 0.004,
   CLOUDS_ROTATION_SPEED: -0.006,

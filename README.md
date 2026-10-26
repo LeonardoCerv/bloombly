@@ -12,9 +12,47 @@
 
 A machine learning platform that detects and forecasts global plant blooming using Earth observation data. Bloombly converts satellite and environmental data into interactive 3D visualizations and API endpoints for research and operational use.
 
-[![Live Demo](https://badges.0xleo.dev/badge?text=Bloombly%20Live%20Demo&bgColor=green&textColor=white&iconColor=white&icon=heroicons-solid:globe-americas)](https://bloomly.earth)s [![Video Demo](https://badges.0xleo.dev/badge?text=Watch%20Demo&bgColor=FF0000&textColor=FFFFFF&iconColor=white&icon=simple-icons:youtube)](https://youtu.be/On70ydW8hGE)
+[![Live Demo](https://badges.0xleo.dev/badge?text=Bloombly%20Live%20Demo&bgColor=green&textColor=white&iconColor=white&icon=heroicons-solid:globe-americas)](https://bloomly.earth) [![Video Demo](https://badges.0xleo.dev/badge?text=Watch%20Demo&bgColor=FF0000&textColor=FFFFFF&iconColor=white&icon=simple-icons:youtube)](https://youtu.be/On70ydW8hGE)
 
 ---
+
+## Quickstart (run locally)
+
+### Frontend — the 3D globe (no API needed)
+
+```bash
+cd frontend
+npm install
+npm start            # http://localhost:3000
+```
+
+The globe loads a ~30k-point sample of the global flowering dataset
+(`data/geojson/flowering_sites.sample.geojson`, ~8 MB). The full raw dataset
+(`data/geojson/flowering_sites.geojson`, ~554k features / ~467 MB) is intentionally
+**not** loaded in the browser — it would freeze the page. Regenerate the sample
+any time with:
+
+```bash
+python scripts/sample_blooms.py
+```
+
+### API — optional, for live ML prediction
+
+The globe is fully usable without the API. To enable on-demand bloom prediction you
+need a Google Earth Engine service account:
+
+```bash
+cd api
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env         # fill in EE_PROJECT and GOOGLE_APPLICATION_CREDENTIALS_JSON
+python -m app.main           # http://localhost:5001
+```
+
+If you host the API somewhere other than `localhost:5001`, set `window.BLOOMBLY_API_URL`
+in `frontend/public/index.html` to its origin so the frontend can reach it.
+
+> Deploying? See [`DEPLOY.md`](DEPLOY.md) for a one-click static deploy of the globe.
 
 ## Problem statement
 

@@ -1,5 +1,5 @@
 import { state } from '../state.js';
-import { COLOR_MODE, DISPLAY_MODE } from '../config.js';
+import { COLOR_MODE, DISPLAY_MODE, CONFIG } from '../config.js';
 import { switchToHexMode, switchToPointsMode, toggleCloudsVisibility, refreshGlobeColors, applyGlobeStyle, setNightSkyBackground, removeNightSkyBackground } from '../globe.js';
 import { applyTimelineFilter } from './timeline.js';
 import { showMetricsCard, updateMetrics } from './metricsCard.js';
@@ -191,9 +191,8 @@ function renderDatasetContent() {
       <select id="datasetSelect" style="width: 100%; padding: 4px; background: #121418; color: #FFFFFF; border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 6px; outline: none;">
         <option value="">-- Choose Dataset --</option>
         <option value="blooms">Bloom Observations</option>
-        <option value="flowering_sites">Flowering Sites</option>
+        <option value="flowering_sites">Flowering Sites (30k sample)</option>
         <option value="wildflower_aoi">Wildflower AOI</option>
-        <option value="kaggle">Kaggle Cherry Blossom 2024</option>
       </select>
       
       <button id="loadDatasetBtn" class="load-dataset-btn">
@@ -450,9 +449,8 @@ async function loadDatasetData() {
   
   const datasetPaths = {
     'blooms': '../data/processed/blooms.geojson',
-    'flowering_sites': '../data/geojson/flowering_sites.geojson',
-    'wildflower_aoi': '../data/geojson/WildflowerBlooms_AreaOfInterest.geojson',
-    'kaggle': '../data/geojson/kaggle.geojson'
+    'flowering_sites': '../data/geojson/flowering_sites.sample.geojson',
+    'wildflower_aoi': '../data/geojson/WildflowerBlooms_AreaOfInterest.geojson'
   };
   
   const filePath = datasetPaths[datasetName];
@@ -601,7 +599,18 @@ async function fetchPredictionData() {
   }
   
   const qs = new URLSearchParams(params).toString();
-  const API_BASE_URL = 'http://localhost:5001/api';
+
+  // Live prediction needs the ML API. In the public demo the API may not be connected
+  // (API_BASE_URL still points at localhost). Detect that and show a friendly message
+  // instead of firing a doomed localhost request from a visitor's browser.
+  const apiConfigured = typeof window !== 'undefined' && window.BLOOMBLY_API_URL;
+  const onLocalhost = typeof location !== 'undefined' && /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+  if (!apiConfigured && !onLocalhost) {
+    alert("Live bloom prediction runs against the ML API, which isn't connected in this public demo.\n\nExplore the precomputed global bloom map instead — pan, zoom, filter by family/genus and scrub the timeline.");
+    return;
+  }
+
+  const API_BASE_URL = CONFIG.API_BASE_URL;
   const apiUrl = `${API_BASE_URL}/predict/blooms?${qs}`;
   
   console.log('Fetching predictions from:', apiUrl);
@@ -685,7 +694,7 @@ async function fetchPredictionData() {
       btn.disabled = false;
     }, 2000);
     
-    alert('Error loading predictions: ' + err.message);
+    alert('Could not reach the prediction API (' + err.message + ').\nMake sure the API is running, or set window.BLOOMBLY_API_URL to its URL.');
   }
 }
 

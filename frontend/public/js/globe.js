@@ -4,7 +4,10 @@ import { state } from './state.js';
 let globe = null;
 
 export function initGlobe() {
-  globe = new Globe(document.getElementById('globeViz'), { animateIn: false })
+  // globe.gl's UMD build is a kapsule factory: call Globe(config)(element).
+  // Using `new Globe(el)` returns the chainable object but never initializes the
+  // WebGL renderer, so no canvas is created and the globe stays blank.
+  globe = Globe({ animateIn: false })(document.getElementById('globeViz'))
     .globeImageUrl(CONFIG.EARTH_IMAGE_URL)
     .bumpImageUrl(CONFIG.EARTH_TOPOLOGY_URL)
     .backgroundColor('rgba(15,17,21,1)')
@@ -34,8 +37,13 @@ export function initGlobe() {
     .polygonStrokeColor(() => 'rgba(255, 255, 255, 0.25)')
     .polygonAltitude(0.001);
 
-  globe.controls().autoRotate = false;
-  globe.controls().autoRotateSpeed = 0.35;
+  // controls() can be briefly unavailable until the renderer has a sized container;
+  // guard so a slow init never throws and blanks the page.
+  const controls = globe.controls && globe.controls();
+  if (controls) {
+    controls.autoRotate = false;
+    controls.autoRotateSpeed = 0.35;
+  }
 
   return globe;
 }
@@ -262,7 +270,7 @@ function applyDetailedStyle() {
     globeMaterial.emissive = new THREE.Color(0x000000);
     globeMaterial.emissiveIntensity = 0;
     
-    new THREE.TextureLoader().load('//cdn.jsdelivr.net/npm/three-globe/example/img/earth-water.png', texture => {
+    new THREE.TextureLoader().load('https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-water.png', texture => {
       globeMaterial.specularMap = texture;
       globeMaterial.specular = new THREE.Color('grey');
       globeMaterial.shininess = 15;
@@ -330,7 +338,7 @@ function applyPlainStyle() {
 
 export function setNightSkyBackground() {
   if (!globe) return;
-  globe.backgroundImageUrl('//cdn.jsdelivr.net/npm/three-globe/example/img/night-sky.png');
+  globe.backgroundImageUrl('https://cdn.jsdelivr.net/npm/three-globe/example/img/night-sky.png');
 }
 
 export function removeNightSkyBackground() {
