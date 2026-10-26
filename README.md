@@ -2,14 +2,17 @@
 
 **50 years of plant blooms on Earth, told on a living 3D globe.** Where life blooms, when in the year, and how the record grew decade by decade.
 
-[![JavaScript](https://badges.0xleo.dev/badge?text=JavaScript\&bgColor=F7DF1E\&textColor=000000\&iconColor=000000\&icon=simple-icons\:javascript)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
-[![Three.js](https://badges.0xleo.dev/badge?text=Three.js\&bgColor=white\&textColor=black\&iconColor=black\&icon=https://images.seeklogo.com/logo-png/43/1/three-js-logo-png_seeklogo-431124.png)](https://threejs.org/)
-[![Python](https://badges.0xleo.dev/badge?text=Python\&bgColor=3776AB\&textColor=FFFFFF\&iconColor=FFFFFF\&icon=simple-icons\:python)](https://www.python.org/)
-[![Flask](https://badges.0xleo.dev/badge?text=Flask\&bgColor=000000\&textColor=FFFFFF\&iconColor=FFFFFF\&icon=simple-icons\:flask)](https://flask.palletsprojects.com/)
-[![Google Earth Engine](https://badges.0xleo.dev/badge?text=Google%20Earth%20Engine\&bgColor=4285F4\&textColor=FFFFFF\&iconColor=FFFFFF\&icon=simple-icons\:googleearthengine)](https://earthengine.google.com/)
-[![NASA Space Apps](https://badges.0xleo.dev/badge?text=Space%20Apps%20Challenge\&bgColor=000000\&textColor=FFFFFF\&icon=https://assets.spaceappschallenge.org/media/images/NASA_logo.width-580.png)](https://www.spaceappschallenge.org/)
+[![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=000)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
+[![three.js](https://img.shields.io/badge/three.js-000000?logo=threedotjs&logoColor=white)](https://threejs.org/)
+[![globe.gl](https://img.shields.io/badge/globe.gl-2a9d8f)](https://globe.gl/)
+[![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/Flask-000000?logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
+[![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
+[![Google Earth Engine](https://img.shields.io/badge/Google%20Earth%20Engine-4285F4?logo=googleearthengine&logoColor=white)](https://earthengine.google.com/)
+[![NASA Space Apps 2025](https://img.shields.io/badge/NASA%20Space%20Apps%202025-0B3D91?logo=nasa&logoColor=white)](https://www.spaceappschallenge.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
-[![Video Demo](https://badges.0xleo.dev/badge?text=Watch%20Demo&bgColor=FF0000&textColor=FFFFFF&iconColor=white&icon=simple-icons:youtube)](https://youtu.be/On70ydW8hGE)
+[![Watch the demo](https://img.shields.io/badge/Watch%20the%20demo-YouTube-FF0000?logo=youtube&logoColor=white)](https://youtu.be/On70ydW8hGE)
 
 ![Bloombly's density globe: hexagonal columns of bloom records rising from the continents, colored from deep blue through teal and magenta to pink, on a night-sky backdrop](docs/screenshots/hero.png)
 
@@ -41,6 +44,18 @@ Pause it at any year, click a column, and you meet the plant that blooms most of
 ![A hexagon clicked on the globe, opening a species card with the genus illustration, plant family, bloom count and peak season](docs/screenshots/species-card.png)
 
 ![Points mode: individual bloom records colored by season, with a spring, summer, fall and winter legend](docs/screenshots/seasons.png)
+
+## How it started
+
+Bloombly was built in a weekend. It began at the [NASA Space Apps Challenge](https://www.spaceappschallenge.org/) on October 4 and 5, 2025, as an answer to the BloomWatch challenge: use NASA Earth observations to build a dynamic tool that detects or displays plant blooming events around the world.
+
+Three friends from Querétaro, Mexico took it on:
+
+- [Leonardo Cervantes](https://github.com/LeonardoCerv): the globe and the data. Turned the raw flowering datasets into GeoJSON and built the three.js visualization that became the face of the project.
+- [KIKW12](https://github.com/KIKW12): the prediction API. Wrote the Flask service and the Google Earth Engine integration that feeds satellite features to the model.
+- [Carlos Martinez Vazquez](https://github.com/CsVazquezz): the machine-learning pipeline. Cleaned the observations, engineered the features and trained the classifier.
+
+The 48-hour version had all three pieces wired together: a forecasting API, a trained model and a globe that could ask it for predictions. After the hackathon, Leonardo kept going with the part that had the most to say, the historical record. The globe was rebuilt around the full 50-year dataset, the cumulative story, the density heatmap and the species cards, and the prediction UI was retired until the model can be hosted properly (its code is still here, see the machine-learning section).
 
 ## How it works
 
@@ -81,7 +96,27 @@ The whole app is static and lives under `frontend/public`, data included. On Ver
 
 Bloombly started at the NASA Space Apps Challenge as a bloom detection and forecasting project, and the repository still contains that side: a Flask API in `api/` and a training pipeline in `ml/`.
 
-![System architecture: data sources feeding the processing pipeline, the model, the Flask API and the globe frontend](architecture.png)
+```mermaid
+flowchart LR
+  subgraph Sources["Data sources"]
+    POWER["NASA POWER<br/>weather"]
+    APPEEARS["NASA AppEEARS<br/>NDVI, EVI"]
+    GEE["Google Earth Engine<br/>imagery"]
+    OLM["OpenLandMap<br/>soil"]
+    GBIF["GBIF, iNaturalist<br/>bloom observations"]
+  end
+  subgraph Pipeline["Processing (backend/, ml/)"]
+    CLEAN["Clean and align<br/>time series"]
+    FEAT["75 features<br/>weather, soil, NDVI,<br/>elevation, photoperiod"]
+  end
+  MODEL["scikit-learn<br/>gradient boosting<br/>bloom / no bloom"]
+  API["Flask API (api/)<br/>/api/predict/blooms"]
+  GEO["GeoJSON exports<br/>(data/)"]
+  SAMPLE["30,000-record sample<br/>about 8 MB"]
+  APP["Static globe (frontend/)<br/>three.js + globe.gl"]
+  POWER & APPEEARS & GEE & OLM & GBIF --> CLEAN --> FEAT --> MODEL --> API
+  CLEAN --> GEO --> SAMPLE --> APP
+```
 
 **Honest status:** the live app is a historical explorer. The forecasting API is not wired into it. Running the API requires a Google Earth Engine service account and a trained model artifact, which is not committed. See [`api/.env.example`](api/.env.example) and [`DEPLOY.md`](DEPLOY.md).
 
@@ -190,6 +225,3 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE).
 
 Third-party licenses: three.js (MIT), globe.gl (MIT), scikit-learn (BSD 3-Clause), NASA data (public domain, U.S. Government).
 
----
-
-Made by [Leonardo Cervantes](https://github.com/LeonardoCerv).
