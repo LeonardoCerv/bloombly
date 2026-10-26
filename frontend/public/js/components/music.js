@@ -1,4 +1,4 @@
-// Ambient soundscape synthesized with the Web Audio API — no audio files, no licensing.
+// Ambient soundscape synthesized with the Web Audio API: no audio files, no licensing.
 // A slow, detuned sine-pad chord with gentle volume drift, toggled by a corner button.
 // (Browsers block audio until a user gesture, so it only starts on click.)
 
@@ -38,7 +38,7 @@ function start() {
     master.connect(filter);
     filter.connect(ctx.destination);
 
-    // A2 · E3 · A3 · B3 — an open, airy voicing
+    // A2 · E3 · A3 · B3, an open, airy voicing
     const freqs = [110, 164.81, 220, 246.94];
     voices = freqs.map((f, i) => {
       const osc = ctx.createOscillator();
@@ -68,7 +68,7 @@ function start() {
     const btn = document.getElementById('music-toggle');
     if (btn) btn.classList.add('on');
   } catch (e) {
-    /* audio not available — fail silently */
+    /* audio not available, fail silently */
   }
 }
 

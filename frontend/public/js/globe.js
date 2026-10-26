@@ -36,7 +36,7 @@ export function initGlobe() {
     .polygonSideColor(() => 'rgba(0, 0, 0, 0)')
     .polygonStrokeColor(() => 'rgba(255, 255, 255, 0.25)')
     .polygonAltitude(0.001)
-    // Density (hexbin) layer — aggregates blooms into hexagons so the whole dataset
+    // Density (hexbin) layer: aggregates blooms into hexagons so the whole dataset
     // reads as a heatmap. Starts empty; populated by switchToDensityMode().
     .hexBinPointLat(d => d.lat)
     .hexBinPointLng(d => d.lng)
@@ -46,15 +46,18 @@ export function initGlobe() {
     .hexAltitude(d => Math.min(CONFIG.HEXBIN_MAX_ALTITUDE, 0.02 + Math.sqrt(d.sumWeight) * 0.02))
     .hexTopColor(d => densityColor(d.sumWeight))
     .hexSideColor(d => densityColor(d.sumWeight))
-    .hexLabel(d => `<b>${d.sumWeight.toLocaleString()}</b> bloom records`)
+    .hexLabel(d => `<b>${d.sumWeight.toLocaleString()}</b> bloom record${d.sumWeight === 1 ? '' : 's'}`)
     .onHexClick(handleHexClick)
+    // Short column transition: the story advances every 600ms, and the default 1s tween
+    // never finished before the next re-aggregation, which is what made autoplay stutter.
+    .hexTransitionDuration(250)
     .hexBinPointsData([]);
 
   // controls() can be briefly unavailable until the renderer has a sized container;
   // guard so a slow init never throws and blanks the page.
   const controls = globe.controls && globe.controls();
   if (controls) {
-    controls.autoRotate = true;      // slow idle spin — the globe feels alive
+    controls.autoRotate = true;      // slow idle spin, so the globe feels alive
     controls.autoRotateSpeed = 0.28;
   }
 
@@ -97,19 +100,6 @@ export function getGlobe() {
   return globe;
 }
 
-// Climate-shift color: diverging red (bloomed earlier -> warming) <-> blue (later),
-// near-neutral around the baseline. Input is days of deviation from the historical mean.
-export function climateColor(dev) {
-  const n = Number(dev);
-  if (dev == null || isNaN(n)) return '#9aa5b1'; // no climate data -> muted gray
-  const t = Math.max(-1, Math.min(1, n / 25)); // -1 = 25d earlier, +1 = 25d later
-  const mag = Math.abs(t);
-  const hue = t <= 0 ? 8 : 205;          // red earlier, blue later
-  const sat = 20 + mag * 65;             // neutral near baseline, saturated at extremes
-  const light = 68 - mag * 20;
-  return `hsl(${hue}, ${sat}%, ${light}%)`;
-}
-
 export function getColorForFeature(feature) {
   // Special case for user location marker
   if (feature.isUserLocation) {
@@ -120,22 +110,13 @@ export function getColorForFeature(feature) {
     return seasonColor(feature.Season);
   }
 
-  if (state.currentColorMode === COLOR_MODE.CLIMATE) {
-    const dev = feature.deviation != null ? feature.deviation : feature.DeviationFromBaseline;
-    return climateColor(dev);
-  }
-
   if (state.currentColorMode === COLOR_MODE.FAMILY) {
     // In Family mode, all genera in the same family show the same family color
     const color = state.familyColors[feature.Family] || CONFIG.DEFAULT_COLOR;
     return color;
   } else if (state.currentColorMode === COLOR_MODE.GENUS) {
     // In Genus mode, each genus gets its unique shade of the family color
-    const color = state.genusColors[feature.Genus] || state.familyColors[feature.Family] || CONFIG.DEFAULT_COLOR;
-    if (!state.genusColors[feature.Genus]) {
-      console.warn(`No color found for genus: ${feature.Genus}, Family: ${feature.Family}`);
-    }
-    return color;
+    return state.genusColors[feature.Genus] || state.familyColors[feature.Family] || CONFIG.DEFAULT_COLOR;
   }
   return CONFIG.DEFAULT_COLOR;
 }
@@ -181,11 +162,6 @@ export function createPointFromFeature(feature) {
     Season: properties.Season,
     Area: properties.Area,
     year: properties.year,
-    // Optional richer fields (present in the cherry-blossom dataset)
-    Species: properties.Species,
-    CommonName: properties.CommonName,
-    deviation: properties.DeviationFromBaseline,
-    temperature: properties.Temperature,
     maxR: properties.Area * CONFIG.RING_AREA_SCALE + CONFIG.RING_BASE_RADIUS,
     propagationSpeed: CONFIG.RING_PROPAGATION_SPEED,
     repeatPeriod: CONFIG.RING_REPEAT_PERIOD
@@ -218,12 +194,36 @@ function seasonColor(season) {
   return SEASON_COLORS[season] || '#9aa5b1';
 }
 
+// three-globe tags live per-hex objects with __globeObjType 'hexbin' and the single merged
+// mesh with 'hexBinPoints', both inside the same layer group. When the merge flag flips back
+// to unmerged, the merged mesh is left behind in that group, so after any unmerged render we
+// sweep the group and drop anything that is not a live hex. The mesh is only detached, not
+// disposed, since three-globe may reuse it the next time the layer merges.
+let hexLayerGroup = null;
+function purgeOrphanedMergedHexes() {
+  if (!globe || globe.hexBinMerge()) return;
+  if (!hexLayerGroup) {
+    globe.scene().traverse(o => {
+      const t = o.__globeObjType;
+      if (!hexLayerGroup && (t === 'hexbin' || t === 'hexBinPoints') && o.parent) hexLayerGroup = o.parent;
+    });
+  }
+  if (!hexLayerGroup) return;
+  [...hexLayerGroup.children].forEach(child => {
+    if (child.isMesh && child.__globeObjType !== 'hexbin') hexLayerGroup.remove(child);
+  });
+}
+function scheduleHexPurge() {
+  requestAnimationFrame(() => requestAnimationFrame(purgeOrphanedMergedHexes));
+}
+
 export function switchToHexMode() {
   if (!globe) return;
   globe.hexBinPointsData([]);
   globe.hexPolygonsData(state.filteredFeatures);
   globe.pointsData([]);
   globe.ringsData([]);
+  scheduleHexPurge();
 }
 
 export function switchToPointsMode() {
@@ -232,6 +232,25 @@ export function switchToPointsMode() {
   globe.pointsData(state.filteredPoints);
   globe.hexPolygonsData([]);
   globe.ringsData(state.ringsEnabled ? state.filteredPoints : []);
+  scheduleHexPurge();
+}
+
+// While the story plays, the hexbins render as one merged mesh, which is far cheaper to
+// rebuild every tick. Merged hexes are not clickable, so the timeline unmerges on pause.
+export function setHexBinMerged(flag) {
+  return new Promise(resolve => {
+    if (!globe) return resolve();
+    flag = !!flag;
+    if (globe.hexBinMerge() === flag) return resolve();
+    // Empty the layer and let three-globe digest that in the CURRENT mode (it batches
+    // property changes per frame) before flipping the flag. Flipping with data present
+    // leaves the previous merged mesh orphaned in the scene. Callers re-set data after.
+    globe.hexBinPointsData([]);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      globe.hexBinMerge(flag);
+      resolve();
+    }));
+  });
 }
 
 export function switchToDensityMode() {
@@ -240,6 +259,7 @@ export function switchToDensityMode() {
   globe.hexPolygonsData([]);
   globe.ringsData([]);
   globe.hexBinPointsData(state.filteredPoints);
+  scheduleHexPurge();
 }
 
 export function refreshGlobeColors() {
@@ -247,43 +267,6 @@ export function refreshGlobeColors() {
   globe.hexPolygonsData(globe.hexPolygonsData());
   globe.pointsData(globe.pointsData());
   globe.ringsData(globe.ringsData());
-}
-
-export function initializeClouds() {
-  if (!globe) return;
-  
-  new THREE.TextureLoader().load(CONFIG.CLOUDS_IMAGE_URL, cloudsTexture => {
-    const cloudsGeometry = new THREE.SphereGeometry(
-      globe.getGlobeRadius() * (1 + CONFIG.CLOUDS_ALTITUDE), 
-      75, 
-      75
-    );
-    const cloudsMaterial = new THREE.MeshPhongMaterial({ 
-      map: cloudsTexture, 
-      transparent: true 
-    });
-    
-    state.cloudsMesh = new THREE.Mesh(cloudsGeometry, cloudsMaterial);
-    animateClouds();
-  });
-}
-
-function animateClouds() {
-  if (state.cloudsMesh) {
-    state.cloudsMesh.rotation.y += CONFIG.CLOUDS_ROTATION_SPEED * Math.PI / 180;
-  }
-  requestAnimationFrame(animateClouds);
-}
-
-export function toggleCloudsVisibility() {
-  if (!state.cloudsMesh || !globe) return;
-  
-  const scene = globe.scene();
-  if (scene.children.includes(state.cloudsMesh)) {
-    scene.remove(state.cloudsMesh);
-  } else {
-    scene.add(state.cloudsMesh);
-  }
 }
 
 export function toggleRings() {
@@ -433,12 +416,6 @@ export function setNightSkyBackground() {
   globe.backgroundImageUrl('https://cdn.jsdelivr.net/npm/three-globe/example/img/night-sky.png');
 }
 
-export function removeNightSkyBackground() {
-  if (!globe) return;
-  globe.backgroundImageUrl(null)
-       .backgroundColor('rgba(15,17,21,1)'); // Background color from palette
-}
-
 export async function loadCountryBorders() {
   if (!globe) return;
   
@@ -453,8 +430,6 @@ export async function loadCountryBorders() {
     
     // Set the countries data to the globe
     globe.polygonsData(countries.features);
-    
-    console.log('Country borders loaded successfully');
   } catch (error) {
     console.error('Error loading country borders:', error);
   }
@@ -475,8 +450,6 @@ let userLocationMarker = null;
 
 export function setUserLocationMarker(lat, lng) {
   if (!globe) return;
-  
-  console.log(`[User Location Marker] Setting marker at lat: ${lat}, lng: ${lng}`);
   
   // Remove existing marker if any
   removeUserLocationMarker();
@@ -501,8 +474,6 @@ export function setUserLocationMarker(lat, lng) {
     module.applyTimelineFilter();
   });
   
-  console.log(`[User Location Marker] User location added to state.pointsData`);
-  
   // Focus camera on user location
   globe.pointOfView({ lat, lng, altitude: 2 }, 1000);
   
@@ -526,8 +497,6 @@ export function removeUserLocationMarker() {
   import('./components/timeline.js').then(module => {
     module.applyTimelineFilter();
   });
-  
-  console.log('[User Location Marker] User location removed from state.pointsData');
   userLocationMarker = null;
 }
 

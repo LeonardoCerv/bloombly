@@ -114,7 +114,6 @@ export const state = {
   pointsData: [],
   currentColorMode: COLOR_MODE.SEASON,
   currentDisplayMode: DISPLAY_MODE.DENSITY,
-  cloudsMesh: null,
   ringsEnabled: false,
   allFamilies: new Set(),
   allGenus: new Set(),
@@ -122,7 +121,6 @@ export const state = {
   selectedFamilies: new Set(),
   selectedGenus: new Set(),
   allYears: [],
-  timelineSteps: [],
   currentTimelineIndex: 0,
   timelineActive: false, // false = show all years at once (dense default); true = filter to the current step
   isPlaying: false,
@@ -153,7 +151,6 @@ export function generateColorForGenus(genus, family) {
   // Get the color scale for this family
   const colorScaleName = state.familyToColorScale[family];
   if (!colorScaleName) {
-    console.warn(`No color scale found for family: ${family}`);
     return CONFIG.DEFAULT_COLOR;
   }
   
@@ -169,7 +166,6 @@ export function generateColorForGenus(genus, family) {
   const genusIndex = generaInFamily.indexOf(genus);
   
   if (genusIndex === -1) {
-    console.warn(`Genus ${genus} not found in family ${family}`);
     return colorScale[4]; // Return main family color as fallback
   }
   
@@ -186,49 +182,17 @@ export function generateColorForGenus(genus, family) {
 
 export function initializeFamilyColors() {
   const allFamiliesArray = Array.from(state.allFamilies).sort();
-  
-  console.log('=== INITIALIZING FAMILY COLORS ===');
-  console.log('Total families:', allFamiliesArray.length);
-  console.log('Families:', allFamiliesArray);
-  
+
   // Assign colors to families
   allFamiliesArray.forEach((family, index) => {
     state.familyColors[family] = generateColorForFamily(family, index, allFamiliesArray.length);
   });
-  
-  console.log('Family colors assigned:', state.familyColors);
-  console.log('Family to color scale mapping:', state.familyToColorScale);
-  
-  // Assign colors to all genera
-  const allGeneraArray = Array.from(state.allGenus).sort();
-  console.log('\n=== INITIALIZING GENUS COLORS ===');
-  console.log('Total genera:', allGeneraArray.length);
-  
-  // Group genera by family for better debugging
-  const generaByFamily = {};
-  allGeneraArray.forEach((genus) => {
+
+  // Assign each genus a shade of its family's color scale
+  Array.from(state.allGenus).sort().forEach((genus) => {
     const family = state.genusToFamily.get(genus);
     if (family) {
-      if (!generaByFamily[family]) {
-        generaByFamily[family] = [];
-      }
-      generaByFamily[family].push(genus);
       state.genusColors[genus] = generateColorForGenus(genus, family);
-    } else {
-      console.warn(`No family found for genus: ${genus}`);
     }
   });
-  
-  console.log('\n=== GENERA BY FAMILY ===');
-  Object.entries(generaByFamily).forEach(([family, genera]) => {
-    console.log(`\n${family} (${state.familyToColorScale[family]}):`);
-    genera.forEach((genus, idx) => {
-      console.log(`  ${idx + 1}. ${genus}: ${state.genusColors[genus]}`);
-    });
-  });
-  
-  console.log('\n=== SUMMARY ===');
-  console.log('Total genus colors initialized:', Object.keys(state.genusColors).length);
-  console.log('Sample genus colors:', Object.entries(state.genusColors).slice(0, 5));
 }
-

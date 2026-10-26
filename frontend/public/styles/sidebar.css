@@ -1,5 +1,4 @@
 /* Left Sidebar - Dataset Controls */
-#dataset-legend,
 #unified-legend {
   position: absolute;
   top: 40px;
@@ -33,104 +32,6 @@
   margin: 0;
 }
 
-/* Mode Switcher Styles */
-.mode-switcher-container {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 12px;
-}
-
-.mode-btn {
-  flex: 1;
-  padding: 6px 8px;
-  background: #121418;
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  border-radius: 8px;
-  color: #FFFFFF;
-  font-size: 11px;
-  font-weight: 200;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  pointer-events: auto;
-}
-
-.mode-btn:hover {
-  background: #1B1F25;
-  border-color: rgba(255, 255, 255, 1);
-}
-
-.mode-btn.active {
-  background: #4ED9D9;
-  color: #0F1115;
-  border-color: #4ED9D9;
-  font-weight: bold;
-  box-shadow: 0 2px 8px rgba(78, 217, 217, 0.3);
-}
-
-/* Load Dataset Button Styles */
-.load-dataset-btn {
-  width: 100%;
-  padding: 8px;
-  margin-top: 8px;
-  background: transparent;
-  color: #4ED9D9;
-  border: 1px solid #4ED9D9;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: bold;
-  font-size: 12px;
-  transition: all 0.3s ease;
-  box-shadow: none;
-}
-
-.load-dataset-btn:hover:not(:disabled) {
-  background: rgba(78, 217, 217, 0.1);
-  border-color: #6ee5e5;
-  color: #6ee5e5;
-  box-shadow: 0 0 12px rgba(78, 217, 217, 0.3);
-  transform: translateY(-1px);
-}
-
-.load-dataset-btn:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-.load-dataset-btn.loading {
-  background: transparent;
-  color: rgba(78, 217, 217, 0.5);
-  border-color: rgba(78, 217, 217, 0.5);
-  cursor: wait;
-  animation: pulse 1.5s ease-in-out infinite;
-}
-
-.load-dataset-btn.success {
-  background: transparent;
-  color: #22c55e;
-  border-color: #22c55e;
-  box-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
-}
-
-.load-dataset-btn.error {
-  background: transparent;
-  color: #ef4444;
-  border-color: #ef4444;
-  box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
-}
-
-.load-dataset-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 0.6;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
 #datasetColorsLegend,
 #unifiedColorsLegend {
   position: absolute;
@@ -150,23 +51,6 @@
 }
 
 /* Right Sidebar - Prediction Controls */
-#prediction-legend {
-  position: absolute;
-  top: 40px;
-  right: 20px;
-  bottom: 20px;
-  background: transparent;
-  padding: 16px;
-  border-radius: 12px;
-  font-size: 11px;
-  max-height: calc(100vh - 60px);
-  overflow-y: auto;
-  width: 160px;
-  pointer-events: none;
-  display: flex;
-  flex-direction: column;
-}
-
 #predColorsLegend {
   position: absolute;
   right: 200px;
@@ -182,24 +66,6 @@
   display: none;
   flex-direction: column;
   justify-content: flex-end;
-}
-
-/* Legacy support for old sidebar (keep for backward compatibility) */
-#legend {
-  position: absolute;
-  top: 40px;
-  left: 20px;
-  bottom: 20px;
-  background: transparent;
-  padding: 16px;
-  border-radius: 12px;
-  font-size: 11px;
-  max-height: calc(100vh - 60px);
-  overflow-y: auto;
-  width: 160px;
-  pointer-events: none;
-  display: flex;
-  flex-direction: column;
 }
 
 #colorsLegend {
@@ -323,38 +189,8 @@
   background: rgba(78, 217, 217, 0.6);
 }
 
-#legend *,
-#dataset-legend *,
-#unified-legend *,
-#prediction-legend * {
+#unified-legend * {
   pointer-events: auto;
-}
-
-/* Custom scrollbar */
-#legend::-webkit-scrollbar,
-#dataset-legend::-webkit-scrollbar,
-#prediction-legend::-webkit-scrollbar {
-  width: 8px;
-}
-
-#legend::-webkit-scrollbar-track,
-#dataset-legend::-webkit-scrollbar-track,
-#prediction-legend::-webkit-scrollbar-track {
-  background: #1B1F25;
-  border-radius: 4px;
-}
-
-#legend::-webkit-scrollbar-thumb,
-#dataset-legend::-webkit-scrollbar-thumb,
-#prediction-legend::-webkit-scrollbar-thumb {
-  background: rgba(78, 217, 217, 0.5);
-  border-radius: 4px;
-}
-
-#legend::-webkit-scrollbar-thumb:hover,
-#dataset-legend::-webkit-scrollbar-thumb:hover,
-#prediction-legend::-webkit-scrollbar-thumb:hover {
-  background: rgba(78, 217, 217, 0.7);
 }
 
 .control-buttons {

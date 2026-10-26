@@ -8,15 +8,12 @@ export function initDescriptionCard() {
   container.className = 'description-card';
   container.style.display = 'none';
   document.body.appendChild(container);
-  console.log('[Description Card] Initialized with ID and class "description-card"');
 }
 
 export function showDescriptionCard(point, event, coords) {
   currentPoint = point;
   const card = document.getElementById('description-card');
-  
-  console.log('[Description Card] showDescriptionCard called', { point, card });
-  
+
   if (!card) {
     console.error('Description card not initialized');
     return;
@@ -27,25 +24,10 @@ export function showDescriptionCard(point, event, coords) {
   const genusImagePath = point.Genus ? `../images/${point.Genus}.png` : null;
   const season = point.Season || '';
   const seasonClass = season ? `dc-season-${season.toLowerCase()}` : '';
-  const latStr = (typeof point.lat === 'number') ? `${point.lat.toFixed(2)}°` : '—';
-  const lngStr = (typeof point.lng === 'number') ? `${point.lng.toFixed(2)}°` : '—';
+  const latStr = (typeof point.lat === 'number') ? `${point.lat.toFixed(2)}°` : '-';
+  const lngStr = (typeof point.lng === 'number') ? `${point.lng.toFixed(2)}°` : '-';
   const isBin = point.binCount != null; // a clicked density hexbin (area summary)
-  const common = isBin
-    ? `<div class="dc-common">Most common bloom in this area</div>`
-    : (point.CommonName ? `<div class="dc-common">${point.CommonName}</div>` : '');
-
-  // Climate signal (days earlier/later than the historical baseline), when present
-  let devStat = '';
-  if (point.deviation != null && !isNaN(Number(point.deviation))) {
-    const d = Number(point.deviation);
-    const label = d < 0 ? `${Math.abs(d).toFixed(0)} days earlier` : (d > 0 ? `${d.toFixed(0)} days later` : 'on baseline');
-    const cls = d < 0 ? 'dc-earlier' : (d > 0 ? 'dc-later' : '');
-    devStat = `
-        <div class="dc-stat dc-stat-wide">
-          <span class="dc-k">Bloom vs. baseline</span>
-          <span class="dc-v ${cls}">${label}</span>
-        </div>`;
-  }
+  const common = isBin ? `<div class="dc-common">Most common bloom in this area</div>` : '';
 
   const statGroup = (k, v) => `
         <div class="dc-stat">
@@ -55,16 +37,15 @@ export function showDescriptionCard(point, event, coords) {
 
   let statsHtml;
   if (isBin) {
-    statsHtml = `${devStat}
+    statsHtml = `
         ${statGroup('Blooms here', Number(point.binCount).toLocaleString())}
-        ${statGroup('Peak season', season || '—')}
+        ${statGroup('Peak season', season || '-')}
         ${statGroup('Location', `${latStr}, ${lngStr}`)}`;
   } else {
-    statsHtml = `${devStat}
-        ${statGroup('Year', point.year != null ? point.year : '—')}
-        ${statGroup('Bloom area', point.Area != null ? point.Area.toFixed(0) + ' km²' : '—')}
-        ${statGroup('Location', `${latStr}, ${lngStr}`)}
-        ${point.confidence != null ? statGroup('Confidence', (point.confidence * 100).toFixed(0) + '%') : ''}`;
+    statsHtml = `
+        ${statGroup('Year', point.year != null ? point.year : '-')}
+        ${statGroup('Bloom area', point.Area != null ? point.Area.toFixed(0) + ' km²' : '-')}
+        ${statGroup('Location', `${latStr}, ${lngStr}`)}`;
   }
 
   card.innerHTML = `
@@ -93,13 +74,10 @@ export function showDescriptionCard(point, event, coords) {
   
   // Show the card with animation
   card.style.display = 'block';
-  
-  console.log('[Description Card] Card display set to block, adding visible class');
-  
+
   // Use setTimeout to trigger animation after display is set
   setTimeout(() => {
     card.classList.add('visible');
-    console.log('[Description Card] Visible class added, card should be shown');
   }, 10);
   
   // Attach close button event

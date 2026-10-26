@@ -24,11 +24,6 @@ export function updateVizLegend() {
     html = ['Spring', 'Summer', 'Fall', 'Winter'].map(s =>
       `<span class="vl-item"><span class="vl-dot" style="background:${SEASON_COLORS[s]};color:${SEASON_COLORS[s]}"></span>${s}</span>`
     ).join('');
-  } else if (state.currentColorMode === COLOR_MODE.CLIMATE) {
-    html = `<span class="vl-label">Earlier</span>
-            <span class="vl-bar vl-climate"></span>
-            <span class="vl-label">Later</span>
-            <span class="vl-sub">vs. baseline</span>`;
   } else {
     el.style.display = 'none';
     return;
@@ -47,9 +42,9 @@ export function updateStoryCaption() {
     const year = state.allYears[state.currentTimelineIndex];
     el.textContent = `Recorded through ${year} · ${n.toLocaleString()} blooms`;
   } else if (state.currentDisplayMode === DISPLAY_MODE.DENSITY) {
-    el.textContent = `Where Earth blooms — ${n.toLocaleString()} records across five decades`;
+    el.textContent = `Where Earth blooms: ${n.toLocaleString()} records across five decades`;
   } else if (state.currentColorMode === COLOR_MODE.SEASON) {
-    el.textContent = `When Earth blooms — every mark colored by its season`;
+    el.textContent = `When Earth blooms, every mark colored by its season`;
   } else {
     el.textContent = `Fifty years of the planet in bloom`;
   }

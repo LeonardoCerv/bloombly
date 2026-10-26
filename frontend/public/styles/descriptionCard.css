@@ -1,4 +1,4 @@
-/* Description Card — bloom detail on point click */
+/* Description Card: bloom detail on point click */
 .description-card {
   position: fixed;
   right: 30px;
@@ -160,16 +160,12 @@
   font-weight: 550;
   color: #eef2f5;
 }
-.dc-conf { color: #4ED9D9; }
 
 .dc-common {
   font-size: 12.5px;
   color: rgba(255, 255, 255, 0.72);
   font-style: italic;
 }
-.dc-stat-wide { grid-column: 1 / -1; }
-.dc-earlier { color: #fb7185; } /* bloomed earlier — warming signal */
-.dc-later   { color: #7dd3fc; } /* bloomed later */
 
 @media (max-width: 640px) {
   .description-card { right: 12px; left: 12px; width: auto; bottom: 96px; }

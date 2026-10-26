@@ -1,14 +1,18 @@
-import { state } from '../state.js';
-import { COLOR_MODE, DISPLAY_MODE, CONFIG } from '../config.js';
-import { switchToHexMode, switchToPointsMode, switchToDensityMode, refreshGlobeColors, applyGlobeStyle } from '../globe.js';
+import { state, initializeFamilyColors } from '../state.js';
+import { COLOR_MODE, DISPLAY_MODE } from '../config.js';
+import {
+  switchToHexMode, switchToPointsMode, switchToDensityMode, refreshGlobeColors, applyGlobeStyle,
+  createPointFromFeature, getGlobe
+} from '../globe.js';
 import { updateVizLegend, updateStoryCaption } from './legend.js';
-import { applyTimelineFilter } from './timeline.js';
+import { applyTimelineFilter, buildTimelineSteps, startStory } from './timeline.js';
 import { showMetricsCard, updateMetrics } from './metricsCard.js';
+import { showAdvancedFilters } from './advancedFilters.js';
 
-// Sidebar mode state
-let currentMode = 'dataset'; // 'dataset' or 'prediction'
-let isDatasetContentInitialized = false;
-let isPredictionContentInitialized = false;
+// Optimized ~30k-point sample of the global flowering dataset. The full file
+// (flowering_sites.geojson, ~467MB / 554k features) freezes the browser, so never load it
+// directly. Regenerate the sample with scripts/sample_blooms.py.
+const DEFAULT_DATASET_URL = '../data/geojson/flowering_sites.sample.geojson';
 
 export function initUnifiedSidebar() {
   const container = document.getElementById('unified-sidebar-container');
@@ -16,20 +20,8 @@ export function initUnifiedSidebar() {
     <div id="unified-legend">
       <!-- Scrollable Content Area -->
       <div id="scrollableContent">
-        <!-- Mode Switcher (hidden: prediction tab needs a backend that isn't part of the
-             live demo, so the app is a single historical-exploration experience) -->
-        <div class="filter-section" style="display: none;">
-          <div class="mode-switcher-container">
-            <button class="mode-btn active" id="datasetModeBtn" data-mode="dataset">Dataset</button>
-            <button class="mode-btn" id="predictionModeBtn" data-mode="prediction">Prediction</button>
-          </div>
-        </div>
-
-        <!-- Dataset Tab Content -->
-        <div id="datasetTabContent" style="display: block;"></div>
-        
-        <!-- Prediction Tab Content -->
-        <div id="predictionTabContent" style="display: none;"></div>
+        <!-- Dataset filters (shown once the dataset has loaded) -->
+        <div id="datasetFilters"></div>
       </div>
       
       <!-- Fixed Controls at Bottom -->
@@ -77,20 +69,10 @@ export function initUnifiedSidebar() {
   `;
 
   attachUnifiedSidebarEventListeners();
-  
-  // Initialize both tab contents
-  renderDatasetContent();
-  renderPredictionContent();
-  
-  // Start with dataset mode
-  switchMode('dataset');
+  renderDatasetFilters();
 }
 
 function attachUnifiedSidebarEventListeners() {
-  // Mode switcher buttons
-  document.getElementById('datasetModeBtn').addEventListener('click', () => switchMode('dataset'));
-  document.getElementById('predictionModeBtn').addEventListener('click', () => switchMode('prediction'));
-  
   // Point style switcher
   const pointStyleSwitcher = document.getElementById('pointStyleSwitcher');
   const pointStyleOptions = ['Density', 'Points', 'Hexagons', 'Rings'];
@@ -143,44 +125,9 @@ function attachUnifiedSidebarEventListeners() {
   });
 }
 
-function switchMode(mode) {
-  currentMode = mode;
-  
-  // Update button states
-  const datasetBtn = document.getElementById('datasetModeBtn');
-  const predictionBtn = document.getElementById('predictionModeBtn');
-  
-  // Get tab content containers
-  const datasetTab = document.getElementById('datasetTabContent');
-  const predictionTab = document.getElementById('predictionTabContent');
-  
-  if (mode === 'dataset') {
-    datasetBtn.classList.add('active');
-    predictionBtn.classList.remove('active');
-    datasetTab.style.display = 'block';
-    predictionTab.style.display = 'none';
-  } else {
-    predictionBtn.classList.add('active');
-    datasetBtn.classList.remove('active');
-    datasetTab.style.display = 'none';
-    predictionTab.style.display = 'block';
-  }
-}
-
-function renderDatasetContent() {
-  // Only render once
-  if (isDatasetContentInitialized) return;
-  
-  const datasetTabContent = document.getElementById('datasetTabContent');
-  datasetTabContent.innerHTML = `
-    <!-- Single dataset auto-loads on launch; chooser hidden (kept for the auto-load machinery) -->
-    <div class="filter-section" style="display: none;">
-      <select id="datasetSelect">
-        <option value="flowering_sites">Global Flowering · 1975–2025</option>
-      </select>
-      <button id="loadDatasetBtn" class="load-dataset-btn">Load Data</button>
-    </div>
-
+function renderDatasetFilters() {
+  const container = document.getElementById('datasetFilters');
+  container.innerHTML = `
     <!-- Filter Switcher (Hidden until data loaded) -->
     <div id="filterSwitcherSection" style="display: none;">
       <div class="filter-section">
@@ -208,8 +155,6 @@ function renderDatasetContent() {
     </div>
   `;
   
-  // Attach dataset-specific listeners
-  document.getElementById('loadDatasetBtn').addEventListener('click', loadDatasetData);
   document.getElementById('familySearch').addEventListener('input', (e) => {
     updateFamilyCheckboxes(e.target.value);
   });
@@ -237,121 +182,6 @@ function renderDatasetContent() {
       handleFilterTypeChange(currentFilterType);
     });
   });
-  
-  isDatasetContentInitialized = true;
-}
-
-function renderPredictionContent() {
-  // Only render once
-  if (isPredictionContentInitialized) return;
-  
-  const predictionTabContent = document.getElementById('predictionTabContent');
-  predictionTabContent.innerHTML = `
-    <!-- ML Prediction Controls -->
-    <div class="filter-section">
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-        <div>
-          <h4 style="margin: 0 0 4px 0;">Count</h4>
-          <input type="number" id="predNumPredictionsInput" min="50" max="500" step="50" value="150" style="width: 100%; padding: 4px; background: #121418; color: #FFFFFF; border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 4px; box-sizing: border-box;">
-        </div>
-        <div>
-          <h4 style="margin: 0 0 4px 0;">Confidence</h4>
-          <input type="number" id="predConfidenceInput" min="0" max="1" step="0.1" value="0.3" style="width: 100%; padding: 4px; background: #121418; color: #FFFFFF; border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 4px; box-sizing: border-box;">
-        </div>
-      </div>
-    </div>
-    
-    <div class="filter-section">
-      <h4>Location Type</h4>
-      <select id="predAoiTypeSelect" style="width: 100%; padding: 4px; background: #121418; color: #FFFFFF; border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 6px; outline: none; box-sizing: border-box;">
-        <option value="point">Point (Lat/Lon)</option>
-        <option value="state" selected>State</option>
-        <option value="country">Country</option>
-      </select>
-    </div>
-      
-    <!-- Point coordinates -->
-    <div id="predPointCoordinates" style="display:none; font-size: 11px;">
-      <label>Lat: 
-        <input type="number" id="predLatInput" min="-90" max="90" step="0.01" placeholder="20.5" style="width: 60px; padding: 2px; background: #121418; color: #FFFFFF; border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 4px;">
-      </label>
-      <label style="margin-left: 4px;">Lon: 
-        <input type="number" id="predLonInput" min="-180" max="180" step="0.01" placeholder="-100" style="width: 60px; padding: 2px; background: #121418; color: #FFFFFF; border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 4px;">
-      </label>
-    </div>
-      
-    <!-- Country selection -->
-    <div id="predCountryOptions" class="filter-section" style="display:none;">
-      <h4>Country</h4>
-      <select id="predAoiCountrySelect" style="width: 100%; padding: 4px; background: #121418; color: #FFFFFF; border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 6px; outline: none; box-sizing: border-box;">
-        <option value="">Select...</option>
-        <option value="Mexico">Mexico</option>
-        <option value="United States">United States</option>
-      </select>
-    </div>
-      
-    <!-- State selection -->
-    <div id="predStateOptions" class="filter-section" style="display:block;">
-      <h4>State</h4>
-      <select id="predAoiStateSelect" style="width: 100%; padding: 4px; background: #121418; color: #FFFFFF; border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 6px; outline: none; box-sizing: border-box;">
-        <optgroup label="🇲🇽 Mexican States">
-          <option value="Queretaro" selected>Querétaro</option>
-          <option value="Jalisco">Jalisco</option>
-          <option value="Guanajuato">Guanajuato</option>
-          <option value="Mexico">México</option>
-          <option value="Michoacan">Michoacán</option>
-          <option value="Puebla">Puebla</option>
-          <option value="Veracruz">Veracruz</option>
-          <option value="Oaxaca">Oaxaca</option>
-          <option value="Chiapas">Chiapas</option>
-          <option value="Yucatan">Yucatán</option>
-        </optgroup>
-        <optgroup label="🇺🇸 US States">
-          <option value="California">California</option>
-          <option value="Texas">Texas</option>
-          <option value="Florida">Florida</option>
-          <option value="New York">New York</option>
-        </optgroup>
-      </select>
-    </div>
-    
-    <div class="filter-section">
-      <h4>Date Range</h4>
-      <div style="display: flex; flex-direction: column; gap: 8px;">
-        <div>
-          <label style="font-size: 9px; color: rgba(255, 255, 255, 0.7); display: block; margin-bottom: 2px;">From:</label>
-          <input type="date" id="predStartDateInput" value="2025-10-05" style="width: 100%; padding: 6px; background: #121418; color: #FFFFFF; border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 6px; outline: none; box-sizing: border-box; font-size: 11px;">
-        </div>
-        <div>
-          <label style="font-size: 9px; color: rgba(255, 255, 255, 0.7); display: block; margin-bottom: 2px;">To:</label>
-          <input type="date" id="predEndDateInput" placeholder="Optional" style="width: 100%; padding: 6px; background: #121418; color: #FFFFFF; border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 6px; outline: none; box-sizing: border-box; font-size: 11px;">
-        </div>
-      </div>
-    </div>
-      
-    <button id="predFetchDataBtn" class="load-dataset-btn">
-      Predict Blooms
-    </button>
-  `;
-  
-  // Attach prediction-specific listeners
-  document.getElementById('predAoiTypeSelect').addEventListener('change', (e) => {
-    const aoiType = e.target.value;
-    document.getElementById('predPointCoordinates').style.display = aoiType === 'point' ? 'block' : 'none';
-    document.getElementById('predCountryOptions').style.display = aoiType === 'country' ? 'block' : 'none';
-    document.getElementById('predStateOptions').style.display = aoiType === 'state' ? 'block' : 'none';
-  });
-  
-  // Auto-focus to end date when start date is filled
-  document.getElementById('predStartDateInput').addEventListener('change', (e) => {
-    if (e.target.value) {
-      document.getElementById('predEndDateInput').focus();
-    }
-  });
-  
-  document.getElementById('predFetchDataBtn').addEventListener('click', fetchPredictionData);
-  
-  isPredictionContentInitialized = true;
 }
 
 // Common control handlers
@@ -425,75 +255,35 @@ function handleFilterTypeChange(index) {
   }
 }
 
-// Dataset loading function
-async function loadDatasetData() {
-  const datasetName = document.getElementById('datasetSelect').value;
-  const btn = document.getElementById('loadDatasetBtn');
-  
-  if (!datasetName) {
-    alert('Please select a dataset');
-    return;
-  }
-  
-  const datasetPaths = {
-    'flowering_sites': '../data/geojson/flowering_sites.sample.geojson'
-  };
-  
-  const filePath = datasetPaths[datasetName];
-  
-  if (!filePath) {
-    alert('Dataset path not found');
-    return;
-  }
-  
-  const originalText = btn.textContent;
-  btn.textContent = 'Loading...';
-  btn.disabled = true;
-  btn.classList.add('loading');
-  
+// Loads the single bundled dataset and wires up the globe, filters, legend, metrics and
+// the autoplaying 50-year story. Called once on startup by app.js.
+export async function loadDefaultDataset() {
   try {
-    const response = await fetch(filePath);
-    
+    const response = await fetch(DEFAULT_DATASET_URL);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
-    
     const data = await response.json();
-    console.log('Dataset loaded:', data);
-    
-    const allFeatures = (data.features || []).filter(feature => {
-      const hasProps = feature.properties && feature.properties.Family && feature.properties.Genus && feature.properties.Season;
-      return hasProps;
-    });
 
+    const allFeatures = (data.features || []).filter(feature =>
+      feature.properties && feature.properties.Family && feature.properties.Genus && feature.properties.Season
+    );
     if (allFeatures.length === 0) {
       throw new Error('No valid features found in dataset');
     }
 
-    // Normalize schema across datasets: the cherry-blossom set uses `Year` (capital),
-    // the global set uses `year`. Canonicalize to lowercase `year` so the timeline works.
-    allFeatures.forEach(f => {
-      const p = f.properties;
-      if (p.year == null && p.Year != null) p.year = p.Year;
-    });
-
-    const { createPointFromFeature, switchToPointsMode, getGlobe } = await import('../globe.js');
-    const { initializeFamilyColors } = await import('../state.js');
-    const { buildTimelineSteps, startStory } = await import('./timeline.js');
-    const { showAdvancedFilters } = await import('./advancedFilters.js');
-    
     state.geojsonFeatures = allFeatures;
     state.pointsData = allFeatures.map(createPointFromFeature);
     state.allFamilies = new Set(allFeatures.map(f => f.properties.Family));
     state.allGenus = new Set(allFeatures.map(f => f.properties.Genus));
     state.selectedFamilies = new Set(state.allFamilies);
     state.selectedGenus = new Set(state.allGenus);
-    
+
     state.genusToFamily.clear();
     allFeatures.forEach(f => {
       state.genusToFamily.set(f.properties.Genus, f.properties.Family);
     });
-    
+
     initializeFamilyColors();
     buildTimelineSteps();
     createFilterUI();
@@ -507,8 +297,7 @@ async function loadDatasetData() {
       switchToPointsMode();
     }
 
-    // Fly the camera to the data so it's actually in view, zoomed to how spread-out it is
-    // (localized sets like the Japan cherry blossoms zoom in; the global set zooms out).
+    // Fly the camera to the data so it's actually in view, zoomed to how spread-out it is.
     try {
       const g = getGlobe();
       const pts = state.pointsData;
@@ -533,205 +322,23 @@ async function loadDatasetData() {
 
     // Kick off the ambient, looping 50-year story automatically.
     startStory();
-    
+
     // Show and update metrics card
     showMetricsCard();
     updateMetrics();
-    
+
     // Show advanced filters card
     showAdvancedFilters();
-    
-    btn.textContent = 'Loaded ✓';
-    btn.classList.remove('loading');
-    btn.classList.add('success');
-    
-    setTimeout(() => {
-      btn.textContent = originalText;
-      btn.classList.remove('success');
-      btn.disabled = false;
-    }, 1500);
-    
-    console.log('Globe updated with', state.pointsData.length, 'points from dataset');
   } catch (err) {
     console.error('Dataset load failed:', err);
-    
-    btn.textContent = 'Error ✗';
-    btn.classList.remove('loading');
-    btn.classList.add('error');
-    
-    setTimeout(() => {
-      btn.textContent = originalText;
-      btn.classList.remove('error');
-      btn.disabled = false;
-    }, 2000);
-    
     alert('Error loading dataset: ' + err.message);
-  }
-}
-
-// Prediction fetching function
-async function fetchPredictionData() {
-  const aoiType = document.getElementById('predAoiTypeSelect').value;
-  const startDate = document.getElementById('predStartDateInput').value;
-  const endDate = document.getElementById('predEndDateInput').value;
-  const confidence = document.getElementById('predConfidenceInput').value;
-  const numPredictions = document.getElementById('predNumPredictionsInput').value;
-  const btn = document.getElementById('predFetchDataBtn');
-
-  if (!startDate) {
-    alert('Please enter a start date');
-    return;
-  }
-
-  const params = {
-    aoi_type: aoiType,
-    start_date: startDate,
-    method: 'v2',
-    confidence: confidence,
-    num_predictions: numPredictions
-  };
-  
-  // Add end date only if provided
-  if (endDate) {
-    params.end_date = endDate;
-  }
-  
-  if (aoiType === 'point') {
-    const lat = document.getElementById('predLatInput').value;
-    const lon = document.getElementById('predLonInput').value;
-    if (!lat || !lon) {
-      alert('Please enter latitude and longitude');
-      return;
-    }
-    params.lat = lat;
-    params.lon = lon;
-  } else if (aoiType === 'state') {
-    const aoiState = document.getElementById('predAoiStateSelect').value;
-    if (!aoiState) {
-      alert('Please select a state');
-      return;
-    }
-    params.aoi_country = 'Mexico';
-    params.aoi_state = aoiState;
-  } else if (aoiType === 'country') {
-    const aoiCountry = document.getElementById('predAoiCountrySelect').value;
-    if (!aoiCountry) {
-      alert('Please select a country');
-      return;
-    }
-    params.aoi_country = aoiCountry;
-  }
-  
-  const qs = new URLSearchParams(params).toString();
-
-  // Live prediction needs the ML API. In the public demo the API may not be connected
-  // (API_BASE_URL still points at localhost). Detect that and show a friendly message
-  // instead of firing a doomed localhost request from a visitor's browser.
-  const apiConfigured = typeof window !== 'undefined' && window.BLOOMBLY_API_URL;
-  const onLocalhost = typeof location !== 'undefined' && /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
-  if (!apiConfigured && !onLocalhost) {
-    alert("Live bloom prediction runs against the ML API, which isn't connected in this public demo.\n\nExplore the precomputed global bloom map instead — pan, zoom, filter by family/genus and scrub the timeline.");
-    return;
-  }
-
-  const API_BASE_URL = CONFIG.API_BASE_URL;
-  const apiUrl = `${API_BASE_URL}/predict/blooms?${qs}`;
-  
-  console.log('Fetching predictions from:', apiUrl);
-
-  const originalText = btn.textContent;
-  btn.textContent = 'Loading...';
-  btn.disabled = true;
-  btn.classList.add('loading');
-
-  try {
-    const response = await fetch(apiUrl);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-    
-    const data = await response.json();
-    console.log('API Response:', data);
-    
-    const allFeatures = (data.features || []).filter(feature => {
-      const hasProps = feature.properties && feature.properties.Family && feature.properties.Genus && feature.properties.Season;
-      return hasProps;
-    });
-
-    if (allFeatures.length === 0) {
-      alert('No bloom predictions found. Try a different location or date.');
-      return;
-    }
-
-    const { createPointFromFeature, switchToPointsMode } = await import('../globe.js');
-    const { initializeFamilyColors } = await import('../state.js');
-    const { buildTimelineSteps } = await import('./timeline.js');
-    const { showAdvancedFilters } = await import('./advancedFilters.js');
-    
-    state.geojsonFeatures = allFeatures;
-    state.pointsData = allFeatures.map(createPointFromFeature);
-    state.allFamilies = new Set(allFeatures.map(f => f.properties.Family));
-    state.allGenus = new Set(allFeatures.map(f => f.properties.Genus));
-    state.selectedFamilies = new Set(state.allFamilies);
-    state.selectedGenus = new Set(state.allGenus);
-    
-    state.genusToFamily.clear();
-    allFeatures.forEach(f => {
-      state.genusToFamily.set(f.properties.Genus, f.properties.Family);
-    });
-    
-    initializeFamilyColors();
-    buildTimelineSteps();
-    createFilterUI();
-    updateLegend();
-    switchToPointsMode();
-    
-    // Show and update metrics card
-    showMetricsCard();
-    updateMetrics();
-    
-    // Show advanced filters card
-    showAdvancedFilters();
-    
-    btn.textContent = 'Loaded ✓';
-    btn.classList.remove('loading');
-    btn.classList.add('success');
-    
-    setTimeout(() => {
-      btn.textContent = originalText;
-      btn.classList.remove('success');
-      btn.disabled = false;
-    }, 1500);
-    
-    console.log('Globe updated with', state.pointsData.length, 'predictions');
-  } catch (err) {
-    console.error('Fetch failed:', err);
-    
-    btn.textContent = 'Error ✗';
-    btn.classList.remove('loading');
-    btn.classList.add('error');
-    
-    setTimeout(() => {
-      btn.textContent = originalText;
-      btn.classList.remove('error');
-      btn.disabled = false;
-    }, 2000);
-    
-    alert('Could not reach the prediction API (' + err.message + ').\nMake sure the API is running, or set window.BLOOMBLY_API_URL to its URL.');
   }
 }
 
 // Filter UI functions
 export function createFilterUI() {
-  // Check which mode we're in and populate the correct containers
-  if (currentMode === 'prediction') {
-    updatePredictionFamilyCheckboxes();
-    updatePredictionGenusCheckboxes();
-  } else {
-    updateFamilyCheckboxes();
-    updateGenusCheckboxes();
-  }
+  updateFamilyCheckboxes();
+  updateGenusCheckboxes();
 }
 
 function updateFamilyCheckboxes(searchTerm = '') {
@@ -804,153 +411,38 @@ function handleFamilyFilterChange(event) {
     state.selectedFamilies.clear();
   }
   
-  if (!isChecked) {
-    const genusInFamily = Array.from(state.genusToFamily.entries())
-      .filter(([genus, family]) => family === changedFamily)
-      .map(([genus, family]) => genus);
-    
-    genusInFamily.forEach(genus => {
-      state.selectedGenus.delete(genus);
-    });
-    
-    const genusContainer = document.getElementById('genusCheckboxes');
+  // Keep the genus checkboxes in step with their family: unchecking a family hides its
+  // genera, re-checking it brings them back. The genus selection is then rebuilt from the
+  // checkboxes, so state and UI never disagree.
+  const genusInFamily = Array.from(state.genusToFamily.entries())
+    .filter(([, family]) => family === changedFamily)
+    .map(([genus]) => genus);
+  const genusContainer = document.getElementById('genusCheckboxes');
+  if (genusContainer) {
     genusContainer.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-      if (genusInFamily.includes(checkbox.value)) {
-        checkbox.checked = false;
-      }
+      if (genusInFamily.includes(checkbox.value)) checkbox.checked = isChecked;
     });
+    syncGenusSelectionFromCheckboxes(genusContainer);
   }
-  
+
   applyTimelineFilter();
   updateMetrics();
 }
 
-function handleGenusFilterChange(event) {
-  const genus = event.target.value;
-  const container = document.getElementById('genusCheckboxes');
+// An empty selection means "no genus filter", so only a partial selection is recorded.
+function syncGenusSelectionFromCheckboxes(container) {
   const allCheckboxes = container.querySelectorAll('input[type="checkbox"]');
-  const checkedCheckboxes = Array.from(allCheckboxes).filter(cb => cb.checked);
-  
+  const checked = Array.from(allCheckboxes).filter(cb => cb.checked);
   state.selectedGenus.clear();
-  checkedCheckboxes.forEach(cb => {
-    state.selectedGenus.add(cb.value);
-  });
-  
-  if (checkedCheckboxes.length === allCheckboxes.length) {
-    state.selectedGenus.clear();
+  if (checked.length !== allCheckboxes.length) {
+    checked.forEach(cb => state.selectedGenus.add(cb.value));
   }
-  
+}
+
+function handleGenusFilterChange() {
+  syncGenusSelectionFromCheckboxes(document.getElementById('genusCheckboxes'));
   applyTimelineFilter();
   updateMetrics();
-}
-
-// Prediction-specific filter functions
-function updatePredictionFamilyCheckboxes(searchTerm = '') {
-  const container = document.getElementById('predFamilyCheckboxes');
-  if (!container) return;
-  
-  const families = Array.from(state.allFamilies).sort();
-  const filteredFamilies = searchTerm 
-    ? families.filter(f => f.toLowerCase().includes(searchTerm.toLowerCase()))
-    : families;
-  
-  const shouldBeChecked = (family) => {
-    if (state.selectedFamilies.size === 0) return true;
-    return state.selectedFamilies.has(family);
-  };
-  
-  container.innerHTML = filteredFamilies.map(family => `
-    <label class="checkbox-item">
-      <input type="checkbox" value="${family}" 
-             ${shouldBeChecked(family) ? 'checked' : ''}>
-      ${family}
-    </label>
-  `).join('');
-  
-  container.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-    checkbox.addEventListener('change', handlePredictionFamilyFilterChange);
-  });
-}
-
-function updatePredictionGenusCheckboxes(searchTerm = '') {
-  const container = document.getElementById('predGenusCheckboxes');
-  if (!container) return;
-  
-  const genuses = Array.from(state.allGenus).sort();
-  const filteredGenuses = searchTerm 
-    ? genuses.filter(g => g.toLowerCase().includes(searchTerm.toLowerCase()))
-    : genuses;
-  
-  const shouldBeChecked = (genus) => {
-    if (state.selectedGenus.size === 0) return true;
-    return state.selectedGenus.has(genus);
-  };
-  
-  container.innerHTML = filteredGenuses.map(genus => `
-    <label class="checkbox-item">
-      <input type="checkbox" value="${genus}" 
-             ${shouldBeChecked(genus) ? 'checked' : ''}>
-      ${genus}
-    </label>
-  `).join('');
-  
-  container.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-    checkbox.addEventListener('change', handlePredictionGenusFilterChange);
-  });
-}
-
-function handlePredictionFamilyFilterChange(event) {
-  const changedFamily = event.target.value;
-  const isChecked = event.target.checked;
-  const container = document.getElementById('predFamilyCheckboxes');
-  const allCheckboxes = container.querySelectorAll('input[type="checkbox"]');
-  const checkedCheckboxes = Array.from(allCheckboxes).filter(cb => cb.checked);
-  
-  state.selectedFamilies.clear();
-  checkedCheckboxes.forEach(cb => {
-    state.selectedFamilies.add(cb.value);
-  });
-  
-  if (checkedCheckboxes.length === allCheckboxes.length) {
-    state.selectedFamilies.clear();
-  }
-  
-  if (!isChecked) {
-    const genusInFamily = Array.from(state.genusToFamily.entries())
-      .filter(([genus, family]) => family === changedFamily)
-      .map(([genus, family]) => genus);
-    
-    genusInFamily.forEach(genus => {
-      state.selectedGenus.delete(genus);
-    });
-    
-    const genusContainer = document.getElementById('predGenusCheckboxes');
-    genusContainer.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-      if (genusInFamily.includes(checkbox.value)) {
-        checkbox.checked = false;
-      }
-    });
-  }
-  
-  applyTimelineFilter();
-}
-
-function handlePredictionGenusFilterChange(event) {
-  const genus = event.target.value;
-  const container = document.getElementById('predGenusCheckboxes');
-  const allCheckboxes = container.querySelectorAll('input[type="checkbox"]');
-  const checkedCheckboxes = Array.from(allCheckboxes).filter(cb => cb.checked);
-  
-  state.selectedGenus.clear();
-  checkedCheckboxes.forEach(cb => {
-    state.selectedGenus.add(cb.value);
-  });
-  
-  if (checkedCheckboxes.length === allCheckboxes.length) {
-    state.selectedGenus.clear();
-  }
-  
-  applyTimelineFilter();
 }
 
 // Legend update function

@@ -216,16 +216,12 @@ function applyLocationFilter() {
     return distance <= currentDistanceRange;
   });
   
-  console.log(`[Location Filter] Filtering ${state.geojsonFeatures.length} features to ${filteredByLocation.length} within ${currentDistanceRange} km`);
-  
   // Store the location-filtered features in state for timeline to use
   state.locationFilteredFeatures = filteredByLocation;
   
   // Re-apply timeline filter which will use the location-filtered features
   applyTimelineFilter();
   updateMetrics();
-  
-  console.log(`[Location Filter] Final filtered points: ${state.filteredPoints.length}`);
 }
 
 function removeLocationFilter() {
@@ -250,17 +246,12 @@ function applyAreaFilter() {
     }
   });
   
-  const rangeText = currentAreaRange[1] === 1000 ? `${currentAreaRange[0]}-1000+` : `${currentAreaRange[0]}-${currentAreaRange[1]}`;
-  console.log(`[Area Filter] Filtering ${state.geojsonFeatures.length} features to ${filteredByArea.length} with area ${rangeText} km²`);
-  
   // Store the area-filtered features in state
   state.areaFilteredFeatures = filteredByArea;
   
   // Re-apply timeline filter
   applyTimelineFilter();
   updateMetrics();
-  
-  console.log(`[Area Filter] Final filtered points: ${state.filteredPoints.length}`);
 }
 
 function checkForNearbyBlooms() {

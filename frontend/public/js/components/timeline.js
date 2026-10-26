@@ -1,6 +1,6 @@
 import { state } from '../state.js';
 import { DISPLAY_MODE } from '../config.js';
-import { switchToHexMode, switchToPointsMode, switchToDensityMode } from '../globe.js';
+import { switchToHexMode, switchToPointsMode, switchToDensityMode, setHexBinMerged } from '../globe.js';
 import { updateMetrics } from './metricsCard.js';
 import { updateStoryCaption } from './legend.js';
 
@@ -36,6 +36,10 @@ export function initTimeline() {
   `;
 
   attachTimelineEventListeners();
+
+  // Touching the globe while the story plays pauses it, so you can inspect (and click) hexes.
+  const globeEl = document.getElementById('globeViz');
+  if (globeEl) globeEl.addEventListener('pointerdown', () => { if (state.isPlaying) pause(); });
 }
 
 function attachTimelineEventListeners() {
@@ -104,20 +108,30 @@ export function applyTimelineFilter() {
 
   // Cumulative timeline: when active, show every bloom recorded up to the cutoff year.
   // When inactive (default landing / paused at the end), show the full 50 years at once.
-  state.filteredFeatures = baseFeatures.filter(feature => {
-    const matchesTimeline = !state.timelineActive || feature.properties.year <= cutoffYear;
-    const matchesFamily = state.selectedFamilies.size === 0 || state.selectedFamilies.has(feature.properties.Family);
-    const matchesGenus = state.selectedGenus.size === 0 || state.selectedGenus.has(feature.properties.Genus);
-    return matchesTimeline && matchesFamily && matchesGenus;
-  });
+  const timelineActive = state.timelineActive;
+  const anyFamily = state.selectedFamilies.size === 0;
+  const anyGenus = state.selectedGenus.size === 0;
+  const passes = x =>
+    (!timelineActive || x.year <= cutoffYear) &&
+    (anyFamily || state.selectedFamilies.has(x.Family)) &&
+    (anyGenus || state.selectedGenus.has(x.Genus));
 
-  const featureIds = new Set(state.filteredFeatures.map(f =>
-    `${f.properties.Genus}_${f.properties.Family}_${f.properties.year}_${f.properties.Season}_${f.properties.Area}`
-  ));
+  state.filteredFeatures = baseFeatures.filter(feature => passes(feature.properties));
 
-  state.filteredPoints = state.pointsData.filter(point =>
-    point.isUserLocation || featureIds.has(`${point.Genus}_${point.Family}_${point.year}_${point.Season}_${point.Area}`)
-  );
+  const locationOrAreaActive = state.locationFilteredFeatures !== null || state.areaFilteredFeatures !== null;
+  if (!locationOrAreaActive) {
+    // Fast path (what the autoplay hits every tick): points carry the same fields as
+    // features, so filter them directly instead of building a 20k-entry string Set.
+    state.filteredPoints = state.pointsData.filter(point => point.isUserLocation || passes(point));
+  } else {
+    // Location/area filters operate on features, so map back to points by identity key.
+    const featureIds = new Set(state.filteredFeatures.map(f =>
+      `${f.properties.Genus}_${f.properties.Family}_${f.properties.year}_${f.properties.Season}_${f.properties.Area}`
+    ));
+    state.filteredPoints = state.pointsData.filter(point =>
+      point.isUserLocation || featureIds.has(`${point.Genus}_${point.Family}_${point.year}_${point.Season}_${point.Area}`)
+    );
+  }
 
   if (state.currentDisplayMode === DISPLAY_MODE.HEX) {
     switchToHexMode();
@@ -158,18 +172,20 @@ function togglePlay(direction) {
   // Launching the forward story from the full/paused end restarts it from the first year.
   if (direction === 'forward' && state.currentTimelineIndex >= state.allYears.length - 1) {
     state.currentTimelineIndex = 0;
-    updateTimelineDisplay();
   }
 
+  // 600ms per year keeps the story cinematic and gives the hexbin layer time to settle
+  // between re-aggregations (shorter ticks visibly stutter).
   state.playInterval = setInterval(() => {
     if (direction === 'forward') {
       goToNextStep();
     } else {
       goToPreviousStep();
     }
-  }, 450);
+  }, 600);
 
-  updateTimelineDisplay();
+  // Render once the hexbin layer has switched to its merged (fast) mode.
+  return setHexBinMerged(true).then(updateTimelineDisplay);
 }
 
 function pause() {
@@ -179,8 +195,11 @@ function pause() {
     clearInterval(state.playInterval);
     state.playInterval = null;
   }
-  updateTimelineDisplay();
+  // Unmerge first so hexes are clickable again, then render the paused state.
+  return setHexBinMerged(false).then(updateTimelineDisplay);
 }
+
+export { pause as pauseStory };
 
 // Auto-start the ambient, looping 50-year story once data is loaded.
 export function startStory() {

@@ -27,9 +27,6 @@
 .vl-density {
   background: linear-gradient(90deg, #0d3b66, #2a9d8f, #e76f9e, #ffd1e8);
 }
-.vl-climate {
-  background: linear-gradient(90deg, #fb7185, #9aa5b1, #7dd3fc);
-}
 .vl-item {
   display: flex;
   align-items: center;
@@ -42,7 +39,6 @@
   box-shadow: 0 0 6px currentColor;
 }
 .vl-label { color: rgba(255, 255, 255, 0.6); }
-.vl-sub { opacity: 0.5; margin-left: 2px; }
 
 @media (max-width: 680px) {
   #viz-legend { top: auto; bottom: 150px; font-size: 10.5px; }

@@ -98,7 +98,7 @@ export function updateMetrics() {
       bloomPercentage.innerHTML = `${bloomIcon} ${Math.abs(bloomChange).toFixed(1)}%`;
       bloomPercentage.className = `metric-percentage ${bloomChange > 0 ? 'positive' : bloomChange < 0 ? 'negative' : 'neutral'}`;
     } else {
-      bloomPercentage.innerHTML = '—';
+      bloomPercentage.innerHTML = '-';
       bloomPercentage.className = 'metric-percentage neutral';
     }
     
@@ -112,7 +112,7 @@ export function updateMetrics() {
       coveragePercentage.innerHTML = `${areaIcon} ${Math.abs(areaChange).toFixed(1)}%`;
       coveragePercentage.className = `metric-percentage ${areaChange > 0 ? 'positive' : areaChange < 0 ? 'negative' : 'neutral'}`;
     } else {
-      coveragePercentage.innerHTML = '—';
+      coveragePercentage.innerHTML = '-';
       coveragePercentage.className = 'metric-percentage neutral';
     }
     
