@@ -41,7 +41,8 @@ export const CONFIG = {
 export const COLOR_MODE = {
   DEFAULT: 'default',
   FAMILY: 'family',
-  GENUS: 'genus'
+  GENUS: 'genus',
+  CLIMATE: 'climate' // color by bloom-timing deviation vs. baseline (cherry-blossom dataset)
 };
 
 export const DISPLAY_MODE = {

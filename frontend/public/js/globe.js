@@ -71,12 +71,30 @@ export function getGlobe() {
   return globe;
 }
 
+// Climate-shift color: diverging red (bloomed earlier -> warming) <-> blue (later),
+// near-neutral around the baseline. Input is days of deviation from the historical mean.
+export function climateColor(dev) {
+  const n = Number(dev);
+  if (dev == null || isNaN(n)) return '#9aa5b1'; // no climate data -> muted gray
+  const t = Math.max(-1, Math.min(1, n / 25)); // -1 = 25d earlier, +1 = 25d later
+  const mag = Math.abs(t);
+  const hue = t <= 0 ? 8 : 205;          // red earlier, blue later
+  const sat = 20 + mag * 65;             // neutral near baseline, saturated at extremes
+  const light = 68 - mag * 20;
+  return `hsl(${hue}, ${sat}%, ${light}%)`;
+}
+
 export function getColorForFeature(feature) {
   // Special case for user location marker
   if (feature.isUserLocation) {
     return '#4ED9D9'; // Bright cyan color for user location
   }
-  
+
+  if (state.currentColorMode === COLOR_MODE.CLIMATE) {
+    const dev = feature.deviation != null ? feature.deviation : feature.DeviationFromBaseline;
+    return climateColor(dev);
+  }
+
   if (state.currentColorMode === COLOR_MODE.FAMILY) {
     // In Family mode, all genera in the same family show the same family color
     const color = state.familyColors[feature.Family] || CONFIG.DEFAULT_COLOR;

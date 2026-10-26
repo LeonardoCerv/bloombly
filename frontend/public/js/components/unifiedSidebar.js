@@ -118,7 +118,7 @@ function attachUnifiedSidebarEventListeners() {
   
   // Point color switcher
   const pointColorSwitcher = document.getElementById('pointColorSwitcher');
-  const pointColorOptions = ['Single Color', 'By Family', 'By Genus'];
+  const pointColorOptions = ['Single Color', 'By Family', 'By Genus', 'Climate Shift'];
   
   document.querySelectorAll('[data-target="pointColorSwitcher"]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -401,8 +401,10 @@ function handlePointColorChange(index) {
     state.currentColorMode = COLOR_MODE.FAMILY;
   } else if (index === 2) {
     state.currentColorMode = COLOR_MODE.GENUS;
+  } else if (index === 3) {
+    state.currentColorMode = COLOR_MODE.CLIMATE;
   }
-  
+
   updateLegend();
   refreshGlobeColors();
 }
@@ -515,14 +517,20 @@ async function loadDatasetData() {
     updateLegend();
     switchToPointsMode();
 
-    // Fly the camera to the data's centroid so it's actually in view (e.g. Japan for cherry blossoms)
+    // Fly the camera to the data so it's actually in view, zoomed to how spread-out it is
+    // (localized sets like the Japan cherry blossoms zoom in; the global set zooms out).
     try {
       const g = getGlobe();
       const pts = state.pointsData;
-      if (g && pts.length) {
-        const avgLat = pts.reduce((s, p) => s + (p.lat || 0), 0) / pts.length;
-        const avgLng = pts.reduce((s, p) => s + (p.lng || 0), 0) / pts.length;
-        g.pointOfView({ lat: avgLat, lng: avgLng, altitude: 2 }, 1200);
+      const lats = pts.map(p => p.lat).filter(v => typeof v === 'number').sort((a, b) => a - b);
+      const lngs = pts.map(p => p.lng).filter(v => typeof v === 'number').sort((a, b) => a - b);
+      if (g && lats.length) {
+        const med = arr => arr[Math.floor(arr.length / 2)];
+        // interquartile spread (the dense core of the data); robust to scattered outliers
+        const span = arr => arr[Math.floor(arr.length * 0.75)] - arr[Math.floor(arr.length * 0.25)];
+        const spread = Math.max(span(lats), span(lngs));
+        const altitude = spread > 120 ? 2.3 : (spread > 40 ? 1.7 : 1.1);
+        g.pointOfView({ lat: med(lats), lng: med(lngs), altitude }, 1200);
       }
     } catch (e) { /* non-fatal */ }
 
