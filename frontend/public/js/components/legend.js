@@ -43,9 +43,9 @@ export function updateStoryCaption() {
   const el = document.querySelector('.selector-subtitle');
   if (!el) return;
   const n = (state.filteredPoints && state.filteredPoints.length) || 0;
-  if (state.timelineActive && state.timelineSteps.length) {
-    const step = state.timelineSteps[state.currentTimelineIndex];
-    el.textContent = `${step.season} ${step.year} · ${n.toLocaleString()} blooms on the map`;
+  if (state.timelineActive && state.allYears && state.allYears.length) {
+    const year = state.allYears[state.currentTimelineIndex];
+    el.textContent = `Recorded through ${year} · ${n.toLocaleString()} blooms`;
   } else if (state.currentDisplayMode === DISPLAY_MODE.DENSITY) {
     el.textContent = `Where Earth blooms — ${n.toLocaleString()} records across five decades`;
   } else if (state.currentColorMode === COLOR_MODE.SEASON) {

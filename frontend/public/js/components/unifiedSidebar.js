@@ -479,7 +479,7 @@ async function loadDatasetData() {
 
     const { createPointFromFeature, switchToPointsMode, getGlobe } = await import('../globe.js');
     const { initializeFamilyColors } = await import('../state.js');
-    const { buildTimelineSteps } = await import('./timeline.js');
+    const { buildTimelineSteps, startStory } = await import('./timeline.js');
     const { showAdvancedFilters } = await import('./advancedFilters.js');
     
     state.geojsonFeatures = allFeatures;
@@ -530,6 +530,9 @@ async function loadDatasetData() {
     updateVizLegend();
     updateControlsVisibility();
     updateStoryCaption();
+
+    // Kick off the ambient, looping 50-year story automatically.
+    startStory();
     
     // Show and update metrics card
     showMetricsCard();

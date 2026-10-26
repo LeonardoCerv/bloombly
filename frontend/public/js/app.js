@@ -8,6 +8,7 @@ import { initDescriptionCard } from './components/descriptionCard.js';
 import { initMetricsCard } from './components/metricsCard.js';
 import { initAdvancedFilters } from './components/advancedFilters.js';
 import { initVizLegend } from './components/legend.js';
+import { initMusicToggle } from './components/music.js';
 
 // Initialize the application
 async function init() {
@@ -19,6 +20,7 @@ async function init() {
   initMetricsCard();
   initAdvancedFilters();
   initVizLegend();
+  initMusicToggle();
   
   // Initialize globe — always a night-sky backdrop, never clouds (data stays unobscured)
   initGlobe();
