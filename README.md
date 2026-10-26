@@ -84,6 +84,22 @@ npm start
 
 Then open [http://localhost:3000](http://localhost:3000). The globe works fully on its own; the prediction API below is optional.
 
+### Keyboard shortcuts
+
+- Space: play or pause the 50-year story
+- Left / Right arrows: step one year
+- Esc: close the species card
+
+### Run the smoke test
+
+With the frontend running, in another terminal:
+
+```bash
+cd frontend && npm test
+```
+
+It drives a visible Google Chrome (WebGL needs a real window) through the core flows: autoplay, pause, clicking a hexagon, the keyboard shortcuts and switching to Points. Set `BASE_URL` or `CHROME_PATH` to point it elsewhere.
+
 ## Deploy
 
 The whole app is static and lives under `frontend/public`, data included. On Vercel, set **Root Directory** to `frontend/public` with no build command and no output directory. It also works on any other static host that can serve that folder. Full steps are in [`DEPLOY.md`](DEPLOY.md).
@@ -184,7 +200,7 @@ The API runs on its own (`GET /api/health` reports whether Earth Engine is avail
 bloombly/
 ├── frontend/        # The app: static site under frontend/public (index.html, js/, styles/, images/, data/)
 ├── data/            # GeoJSON datasets: full flowering-sites file, browser sample, prediction outputs
-├── scripts/         # sample_blooms.py, builds the 30,000-record browser sample
+├── scripts/         # sample_blooms.py (browser sample) and ee.js (Earth Engine bloom detection)
 ├── api/             # Flask prediction API (optional, needs Earth Engine + a trained model)
 ├── ml/              # Data cleaning and feature pipeline for model training
 ├── backend/         # Cleaning and conversion scripts for the source datasets (CSV/JSON to GeoJSON)
