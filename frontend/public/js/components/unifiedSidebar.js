@@ -1,6 +1,6 @@
 import { state } from '../state.js';
 import { COLOR_MODE, DISPLAY_MODE, CONFIG } from '../config.js';
-import { switchToHexMode, switchToPointsMode, toggleCloudsVisibility, refreshGlobeColors, applyGlobeStyle, setNightSkyBackground, removeNightSkyBackground } from '../globe.js';
+import { switchToHexMode, switchToPointsMode, switchToDensityMode, toggleCloudsVisibility, refreshGlobeColors, applyGlobeStyle, setNightSkyBackground, removeNightSkyBackground } from '../globe.js';
 import { applyTimelineFilter } from './timeline.js';
 import { showMetricsCard, updateMetrics } from './metricsCard.js';
 
@@ -101,7 +101,7 @@ function attachUnifiedSidebarEventListeners() {
   
   // Point style switcher
   const pointStyleSwitcher = document.getElementById('pointStyleSwitcher');
-  const pointStyleOptions = ['Points', 'Hexagons', 'Rings'];
+  const pointStyleOptions = ['Points', 'Hexagons', 'Rings', 'Density'];
   
   document.querySelectorAll('[data-target="pointStyleSwitcher"]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -385,8 +385,12 @@ function handlePointStyleChange(index) {
     state.currentDisplayMode = DISPLAY_MODE.POINTS;
     state.ringsEnabled = true;
     switchToPointsMode();
+  } else if (index === 3) {
+    state.currentDisplayMode = DISPLAY_MODE.DENSITY;
+    state.ringsEnabled = false;
+    switchToDensityMode();
   }
-  
+
   refreshGlobeColors();
 }
 

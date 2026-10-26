@@ -1,6 +1,6 @@
 import { state } from '../state.js';
 import { DISPLAY_MODE } from '../config.js';
-import { switchToHexMode, switchToPointsMode } from '../globe.js';
+import { switchToHexMode, switchToPointsMode, switchToDensityMode } from '../globe.js';
 import { updateMetrics } from './metricsCard.js';
 
 export function initTimeline() {
@@ -171,6 +171,8 @@ export function applyTimelineFilter() {
   
   if (state.currentDisplayMode === DISPLAY_MODE.HEX) {
     switchToHexMode();
+  } else if (state.currentDisplayMode === DISPLAY_MODE.DENSITY) {
+    switchToDensityMode();
   } else {
     switchToPointsMode();
   }

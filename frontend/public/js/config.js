@@ -18,6 +18,9 @@ export const CONFIG = {
   
   HEX_POLYGON_RESOLUTION: 5,
   HEX_POLYGON_MARGIN: 0.3,
+
+  HEXBIN_RESOLUTION: 3, // density heatmap bin size (higher = smaller hexes)
+  HEXBIN_MAX_ALTITUDE: 0.45,
   
   POINT_AREA_SCALE: 0.0000005,
   POINT_BASE_RADIUS: 0.1,
@@ -43,5 +46,6 @@ export const COLOR_MODE = {
 
 export const DISPLAY_MODE = {
   HEX: 'hex',
-  POINTS: 'points'
+  POINTS: 'points',
+  DENSITY: 'density'
 };

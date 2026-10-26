@@ -35,7 +35,19 @@ export function initGlobe() {
     .polygonCapColor(() => 'rgba(0, 0, 0, 0)')
     .polygonSideColor(() => 'rgba(0, 0, 0, 0)')
     .polygonStrokeColor(() => 'rgba(255, 255, 255, 0.25)')
-    .polygonAltitude(0.001);
+    .polygonAltitude(0.001)
+    // Density (hexbin) layer — aggregates blooms into hexagons so the whole dataset
+    // reads as a heatmap. Starts empty; populated by switchToDensityMode().
+    .hexBinPointLat(d => d.lat)
+    .hexBinPointLng(d => d.lng)
+    .hexBinPointWeight(1)
+    .hexBinResolution(CONFIG.HEXBIN_RESOLUTION)
+    .hexBinMerge(false)
+    .hexAltitude(d => Math.min(CONFIG.HEXBIN_MAX_ALTITUDE, 0.02 + Math.sqrt(d.sumWeight) * 0.02))
+    .hexTopColor(d => densityColor(d.sumWeight))
+    .hexSideColor(d => densityColor(d.sumWeight))
+    .hexLabel(d => `<b>${d.sumWeight.toLocaleString()}</b> bloom records`)
+    .hexBinPointsData([]);
 
   // controls() can be briefly unavailable until the renderer has a sized container;
   // guard so a slow init never throws and blanks the page.
@@ -141,8 +153,16 @@ export function createHexPolygonLabel({ properties: data }) {
   `;
 }
 
+// Density heatmap color: cyan (sparse) -> green -> yellow -> red (dense), log-scaled by count.
+function densityColor(count) {
+  const t = Math.max(0, Math.min(1, Math.log10(count + 1) / 2.5));
+  const hue = 190 - 190 * t;
+  return `hsla(${hue}, 85%, 55%, 0.82)`;
+}
+
 export function switchToHexMode() {
   if (!globe) return;
+  globe.hexBinPointsData([]);
   globe.hexPolygonsData(state.filteredFeatures);
   globe.pointsData([]);
   globe.ringsData([]);
@@ -150,9 +170,18 @@ export function switchToHexMode() {
 
 export function switchToPointsMode() {
   if (!globe) return;
+  globe.hexBinPointsData([]);
   globe.pointsData(state.filteredPoints);
   globe.hexPolygonsData([]);
   globe.ringsData(state.ringsEnabled ? state.filteredPoints : []);
+}
+
+export function switchToDensityMode() {
+  if (!globe) return;
+  globe.pointsData([]);
+  globe.hexPolygonsData([]);
+  globe.ringsData([]);
+  globe.hexBinPointsData(state.filteredPoints);
 }
 
 export function refreshGlobeColors() {
