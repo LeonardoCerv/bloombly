@@ -1,8 +1,9 @@
 import { state } from '../state.js';
 import { DISPLAY_MODE } from '../config.js';
-import { switchToHexMode, switchToPointsMode, switchToDensityMode, setHexBinMerged } from '../globe.js';
+import { switchToPointsMode, switchToDensityMode, setHexBinMerged } from '../globe.js';
 import { updateMetrics } from './metricsCard.js';
 import { updateStoryCaption } from './legend.js';
+import { hideDescriptionCard } from './descriptionCard.js';
 
 // The timeline is a cumulative "50-year story": as it advances, the globe shows every bloom
 // recorded up to that year, so the heatmap grows across the decades. It auto-plays and loops.
@@ -16,26 +17,30 @@ export function initTimeline() {
         <span id="currentYear"></span>
       </div>
       <div id="timelineControls">
-        <button class="timeline-btn step-btn" id="prevStepBtn" title="Previous year">
+        <button class="timeline-btn step-btn" id="prevStepBtn" title="Previous year (Left arrow)" aria-label="Previous year">
           <i class="fa-solid fa-chevron-left"></i>
         </button>
-        <button class="timeline-btn play-btn" id="playBackwardBtn" title="Rewind">
+        <button class="timeline-btn play-btn" id="playBackwardBtn" title="Rewind" aria-label="Rewind">
           <i class="fa-solid fa-backward"></i>
         </button>
-        <button class="timeline-btn pause-btn" id="pauseBtn" title="Pause">
+        <button class="timeline-btn pause-btn" id="pauseBtn" title="Pause (Space)" aria-label="Pause">
           <i class="fa-solid fa-pause"></i>
         </button>
-        <button class="timeline-btn play-btn" id="playForwardBtn" title="Play the 50-year story">
+        <button class="timeline-btn play-btn" id="playForwardBtn" title="Play the 50-year story (Space)" aria-label="Play">
           <i class="fa-solid fa-play"></i>
         </button>
-        <button class="timeline-btn step-btn" id="nextStepBtn" title="Next year">
+        <button class="timeline-btn step-btn" id="nextStepBtn" title="Next year (Right arrow)" aria-label="Next year">
           <i class="fa-solid fa-chevron-right"></i>
         </button>
+      </div>
+      <div id="timelineHint" aria-hidden="true">
+        <kbd>Space</kbd> play or pause · <kbd>←</kbd><kbd>→</kbd> step a year · <kbd>Esc</kbd> close card
       </div>
     </div>
   `;
 
   attachTimelineEventListeners();
+  document.addEventListener('keydown', handleShortcutKey);
 
   // Touching the globe while the story plays pauses it, so you can inspect (and click) hexes.
   const globeEl = document.getElementById('globeViz');
@@ -48,6 +53,44 @@ function attachTimelineEventListeners() {
   document.getElementById('playForwardBtn').addEventListener('click', () => togglePlay('forward'));
   document.getElementById('playBackwardBtn').addEventListener('click', () => togglePlay('backward'));
   document.getElementById('pauseBtn').addEventListener('click', pause);
+}
+
+// Keys typed into a text field, slider or other control belong to that control.
+function isTypingTarget(el) {
+  if (!el || el === document.body) return false;
+  const tag = el.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+}
+
+// Space toggles the story, Left/Right step a year, Escape closes the species card.
+function handleShortcutKey(e) {
+  if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (isTypingTarget(e.target) || isTypingTarget(document.activeElement)) return;
+
+  if (e.key === 'Escape') {
+    const card = document.getElementById('description-card');
+    if (card && card.style.display !== 'none') {
+      e.preventDefault();
+      hideDescriptionCard();
+    }
+    return;
+  }
+
+  if (!state.allYears.length) return; // nothing loaded yet
+
+  if (e.code === 'Space' || e.key === ' ') {
+    // preventDefault stops the page scroll and stops a focused button from also
+    // being "clicked" by the same key press.
+    e.preventDefault();
+    if (e.repeat) return;
+    if (state.isPlaying) pause(); else togglePlay('forward');
+  } else if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    goToPreviousStep();
+  } else if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    goToNextStep();
+  }
 }
 
 export function buildTimelineSteps() {
@@ -133,9 +176,7 @@ export function applyTimelineFilter() {
     );
   }
 
-  if (state.currentDisplayMode === DISPLAY_MODE.HEX) {
-    switchToHexMode();
-  } else if (state.currentDisplayMode === DISPLAY_MODE.DENSITY) {
+  if (state.currentDisplayMode === DISPLAY_MODE.DENSITY) {
     switchToDensityMode();
   } else {
     switchToPointsMode();

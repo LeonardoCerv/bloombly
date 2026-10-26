@@ -103,7 +103,7 @@ export function updateMetrics() {
     }
     
     // Update coverage count
-    coverageCount.textContent = `${metrics.totalArea.toFixed(2)} km²`;
+    coverageCount.textContent = `${Math.round(metrics.totalArea).toLocaleString()} km²`;
     
     // Update coverage percentage
     if (metrics.areaChange !== null) {

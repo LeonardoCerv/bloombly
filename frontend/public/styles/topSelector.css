@@ -45,25 +45,90 @@
   user-select: none;
 }
 
+/* Loading indicator: a line of text over a hairline progress bar, under the subtitle */
+.load-status {
+  margin: 10px auto 0;
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  color: rgba(255, 255, 255, 0.55);
+  opacity: 1;
+  transition: opacity 0.6s ease;
+  user-select: none;
+}
+.load-bar {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 2px;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+.load-bar-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 0;
+  background: linear-gradient(90deg, #2a9d8f, #e76f9e);
+  transition: width 0.2s ease;
+}
+.load-status.is-indeterminate .load-bar-fill {
+  width: 35%;
+  animation: load-slide 1.2s ease-in-out infinite;
+}
+@keyframes load-slide {
+  0% { left: -35%; }
+  100% { left: 100%; }
+}
+.load-status.is-done {
+  opacity: 0;
+}
+.load-status[hidden] {
+  display: none;
+}
+.load-status.is-error {
+  width: auto;
+  max-width: 360px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  background: rgba(16, 18, 23, 0.78);
+  border: 1px solid rgba(252, 165, 165, 0.25);
+  line-height: 1.4;
+  color: #fca5a5;
+}
+.load-status.is-error .load-bar {
+  display: none;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
-  .selector-title {
-    font-size: 18px;
-    letter-spacing: 1px;
+  .top-selector {
+    padding-top: 28px;
   }
-  
-  .selector-content {
-    padding: 12px 24px;
+
+  .selector-title {
+    font-size: 24px;
+    letter-spacing: 1px;
   }
 }
 
 @media (max-width: 480px) {
+  .top-selector {
+    padding: 22px 64px 12px;
+  }
+
   .selector-title {
-    font-size: 14px;
+    font-size: 21px;
     letter-spacing: 0.5px;
   }
-  
-  .selector-content {
-    padding: 10px 20px;
+
+  .selector-subtitle {
+    font-size: 11.5px;
   }
 }

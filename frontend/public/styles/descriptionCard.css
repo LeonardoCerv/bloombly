@@ -167,6 +167,47 @@
   font-style: italic;
 }
 
-@media (max-width: 640px) {
-  .description-card { right: 12px; left: 12px; width: auto; bottom: 96px; }
+@media (max-width: 1100px) and (min-width: 821px) {
+  .description-card { width: 290px; right: 20px; }
+}
+
+/* On short desktop windows the right column leaves little room; let the card shrink */
+@media (max-height: 820px) and (min-width: 821px) {
+  .description-card { min-height: 0; max-height: calc(100vh - 410px); overflow-y: auto; }
+  .description-card .dc-hero { height: 120px; }
+  .description-card .dc-img { max-height: 100px; }
+}
+
+/* Compact layout: a centered sheet that sits just above the timeline controls */
+@media (max-width: 820px) {
+  .description-card {
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    width: min(380px, calc(100% - 24px));
+    bottom: 150px; /* clears the legend pill and the timeline under it */
+    min-height: 0;
+    max-height: calc(100% - 270px);
+    overflow-y: auto;
+  }
+  .dc-hero { height: 130px; }
+  .dc-img { max-height: 110px; }
+}
+
+/* Short landscape screens: the left side is free (the panels live in the sheet), so the
+   card goes there, clear of the centered timeline and the metrics on the right */
+@media (max-height: 520px) and (min-width: 600px) {
+  .description-card {
+    left: 16px;
+    right: auto;
+    margin: 0;
+    top: 64px;
+    bottom: auto;
+    width: 260px;
+    min-height: 0;
+    max-height: calc(100% - 80px);
+    overflow-y: auto;
+  }
+  .description-card .dc-hero { height: 96px; }
+  .description-card .dc-img { max-height: 80px; }
 }

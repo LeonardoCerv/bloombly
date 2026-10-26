@@ -1,13 +1,14 @@
 import { state, initializeFamilyColors } from '../state.js';
 import { COLOR_MODE, DISPLAY_MODE } from '../config.js';
 import {
-  switchToHexMode, switchToPointsMode, switchToDensityMode, refreshGlobeColors, applyGlobeStyle,
+  switchToPointsMode, switchToDensityMode, refreshGlobeColors, applyGlobeStyle,
   createPointFromFeature, getGlobe
 } from '../globe.js';
 import { updateVizLegend, updateStoryCaption } from './legend.js';
 import { applyTimelineFilter, buildTimelineSteps, startStory } from './timeline.js';
 import { showMetricsCard, updateMetrics } from './metricsCard.js';
 import { showAdvancedFilters } from './advancedFilters.js';
+import { setLoadStatus, showLoadError } from './topSelector.js';
 
 // Optimized ~30k-point sample of the global flowering dataset. The full file
 // (flowering_sites.geojson, ~467MB / 554k features) freezes the browser, so never load it
@@ -70,12 +71,46 @@ export function initUnifiedSidebar() {
 
   attachUnifiedSidebarEventListeners();
   renderDatasetFilters();
+  initPanelsToggle();
+}
+
+// On narrow or short screens the side panels do not fit beside the globe, so CSS hides them
+// and this button opens them as a sheet over a dimmed backdrop. The button and backdrop are
+// display:none on wide screens, where the panels are always visible.
+function initPanelsToggle() {
+  if (document.getElementById('panels-toggle')) return;
+  const btn = document.createElement('button');
+  btn.id = 'panels-toggle';
+  btn.type = 'button';
+  btn.title = 'Filters and display options';
+  btn.setAttribute('aria-label', 'Filters and display options');
+  btn.setAttribute('aria-expanded', 'false');
+  btn.innerHTML = '<i class="fa-solid fa-sliders"></i>';
+
+  const backdrop = document.createElement('div');
+  backdrop.id = 'panel-backdrop';
+
+  const setOpen = open => {
+    document.body.classList.toggle('panels-open', open);
+    btn.setAttribute('aria-expanded', String(open));
+    btn.innerHTML = open ? '<i class="fa-solid fa-xmark"></i>' : '<i class="fa-solid fa-sliders"></i>';
+  };
+  btn.addEventListener('click', () => setOpen(!document.body.classList.contains('panels-open')));
+  backdrop.addEventListener('click', () => setOpen(false));
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.body.classList.contains('panels-open')) setOpen(false);
+  });
+
+  document.body.appendChild(backdrop);
+  document.body.appendChild(btn);
 }
 
 function attachUnifiedSidebarEventListeners() {
   // Point style switcher
   const pointStyleSwitcher = document.getElementById('pointStyleSwitcher');
-  const pointStyleOptions = ['Density', 'Points', 'Hexagons', 'Rings'];
+  // A separate 'Hexagons' style (per-bloom dot polygons) was dropped: it looked like Points,
+  // ran at single-digit FPS during the story, and Density already is the hexagon view.
+  const pointStyleOptions = ['Density', 'Points', 'Rings'];
   
   document.querySelectorAll('[data-target="pointStyleSwitcher"]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -195,10 +230,6 @@ function handlePointStyleChange(index) {
     state.ringsEnabled = false;
     switchToPointsMode();
   } else if (index === 2) {
-    state.currentDisplayMode = DISPLAY_MODE.HEX;
-    state.ringsEnabled = false;
-    switchToHexMode();
-  } else if (index === 3) {
     state.currentDisplayMode = DISPLAY_MODE.POINTS;
     state.ringsEnabled = true;
     switchToPointsMode();
@@ -255,15 +286,52 @@ function handleFilterTypeChange(index) {
   }
 }
 
+// Reads the response body in chunks so the loading bar can show real progress. Falls back
+// to an indeterminate bar when the size is unknown or the body is compressed in transit
+// (Content-Length is then the compressed size, so counted bytes would overshoot it).
+async function readJsonWithProgress(response) {
+  const total = Number(response.headers.get('Content-Length')) || 0;
+  if (!response.body || !response.body.getReader) {
+    setLoadStatus('Loading bloom records');
+    return response.json();
+  }
+  const reader = response.body.getReader();
+  const chunks = [];
+  let received = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    received += value.length;
+    const mb = (received / 1048576).toFixed(1);
+    if (total && received <= total) {
+      setLoadStatus(`Loading bloom records · ${mb} MB`, received / total);
+    } else {
+      setLoadStatus(`Loading bloom records · ${mb} MB`);
+    }
+  }
+  const bytes = new Uint8Array(received);
+  let offset = 0;
+  for (const c of chunks) { bytes.set(c, offset); offset += c.length; }
+  setLoadStatus('Preparing the globe', 1);
+  // Let the label paint before the synchronous parse blocks the main thread.
+  await new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+
 // Loads the single bundled dataset and wires up the globe, filters, legend, metrics and
-// the autoplaying 50-year story. Called once on startup by app.js.
+// the autoplaying 50-year story. Called once on startup by app.js. Resolves to true once
+// the globe has data, or false after showing the failure inline under the title.
 export async function loadDefaultDataset() {
   try {
+    setLoadStatus('Loading bloom records');
     const response = await fetch(DEFAULT_DATASET_URL);
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      throw new Error(`HTTP ${response.status}${response.statusText ? ' ' + response.statusText : ''}`);
     }
-    const data = await response.json();
+    const data = await readJsonWithProgress(response);
+    const count = Array.isArray(data.features) ? data.features.length : 0;
+    setLoadStatus(`Drawing ${count.toLocaleString()} bloom records`, 1);
 
     const allFeatures = (data.features || []).filter(feature =>
       feature.properties && feature.properties.Family && feature.properties.Genus && feature.properties.Season
@@ -291,8 +359,6 @@ export async function loadDefaultDataset() {
     // Render in the active display mode (density by default)
     if (state.currentDisplayMode === DISPLAY_MODE.DENSITY) {
       switchToDensityMode();
-    } else if (state.currentDisplayMode === DISPLAY_MODE.HEX) {
-      switchToHexMode();
     } else {
       switchToPointsMode();
     }
@@ -308,7 +374,11 @@ export async function loadDefaultDataset() {
         // interquartile spread (the dense core of the data); robust to scattered outliers
         const span = arr => arr[Math.floor(arr.length * 0.75)] - arr[Math.floor(arr.length * 0.25)];
         const spread = Math.max(span(lats), span(lngs));
-        const altitude = spread > 120 ? 2.3 : (spread > 40 ? 1.7 : 1.1);
+        let altitude = spread > 120 ? 2.3 : (spread > 40 ? 1.7 : 1.1);
+        // The camera's field of view is vertical, so on a portrait screen the same altitude
+        // crops the globe at the sides. Pull back in proportion to how narrow the view is.
+        const aspect = window.innerWidth / Math.max(1, window.innerHeight);
+        if (aspect < 1) altitude = (1 + altitude) / Math.sqrt(Math.max(aspect, 0.35)) - 1;
         g.pointOfView({ lat: med(lats), lng: med(lngs), altitude }, 1200);
       }
     } catch (e) { /* non-fatal */ }
@@ -329,9 +399,12 @@ export async function loadDefaultDataset() {
 
     // Show advanced filters card
     showAdvancedFilters();
+    return true;
   } catch (err) {
     console.error('Dataset load failed:', err);
-    alert('Error loading dataset: ' + err.message);
+    const reason = err && err.message ? err.message : String(err);
+    showLoadError(`Could not load the bloom records (${reason}). Reload the page to try again.`);
+    return false;
   }
 }
 

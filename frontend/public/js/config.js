@@ -5,9 +5,6 @@ export const CONFIG = {
   EARTH_IMAGE_URL: 'https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-blue-marble.jpg',
   EARTH_TOPOLOGY_URL: 'https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-topology.png',
   
-  HEX_POLYGON_RESOLUTION: 5,
-  HEX_POLYGON_MARGIN: 0.3,
-
   HEXBIN_RESOLUTION: 3, // density heatmap bin size (higher = smaller hexes)
   HEXBIN_MAX_ALTITUDE: 0.45,
   
@@ -43,7 +40,6 @@ export const SEASON_COLORS = {
 };
 
 export const DISPLAY_MODE = {
-  HEX: 'hex',
   POINTS: 'points',
   DENSITY: 'density'
 };

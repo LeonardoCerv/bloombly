@@ -1,10 +1,16 @@
+html,
+body {
+  overflow: hidden; /* the page is one full-screen globe; nothing should scroll */
+}
+
 body {
   margin: 0;
   font-family: Arial, sans-serif;
-  overflow-x: hidden; /* Prevent horizontal scrolling */
+  background: #0f1115; /* matches the globe backdrop, so no white flash or gaps */
 }
 
 #globeViz {
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
 }

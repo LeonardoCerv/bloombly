@@ -5,10 +5,13 @@
   width: 100%;
   background: transparent;
   padding: 20px;
+  box-sizing: border-box; /* width 100% plus padding used to overflow the viewport */
   pointer-events: none;
 }
 
-#timeline * {
+/* Only the buttons take the pointer. The label and control rows span the full width, and
+   used to swallow clicks meant for the sidebar switchers and the globe behind them. */
+#timeline button {
   pointer-events: auto;
 }
 
@@ -96,6 +99,46 @@
   font-size: 22px;
   min-width: 50px;
   min-height: 50px;
+}
+
+/* One-line keyboard hint under the controls: quiet until you look for it */
+#timelineHint {
+  margin-top: 6px;
+  text-align: center;
+  font-size: 10.5px;
+  letter-spacing: 0.3px;
+  color: rgba(255, 255, 255, 0.32);
+  user-select: none;
+}
+#timelineHint kbd {
+  display: inline-block;
+  min-width: 10px;
+  padding: 0 4px;
+  margin: 0 1px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 9.5px;
+  line-height: 14px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Touch screens have no keyboard, so the hint is noise there */
+@media (hover: none), (max-width: 820px) {
+  #timelineHint { display: none; }
+}
+
+@media (max-width: 820px) {
+  #timeline { padding: 12px 12px 16px; }
+  #timelineLabel { font-size: 20px; margin-bottom: 8px; gap: 12px; }
+}
+
+@media (max-width: 480px) {
+  #timelineControls { gap: 2px; }
+  .timeline-btn,
+  .timeline-btn.play-btn,
+  .timeline-btn.pause-btn { min-width: 44px; min-height: 44px; padding: 8px 10px; font-size: 19px; }
+  .timeline-btn.step-btn { min-width: 44px; min-height: 44px; padding: 8px 10px; font-size: 20px; }
 }
 
 @keyframes pulse {

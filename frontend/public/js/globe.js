@@ -14,12 +14,6 @@ export function initGlobe() {
     .atmosphereColor('rgba(255, 255, 255, 1)')
     .atmosphereAltitude(0.15)
     .pointOfView(CONFIG.INITIAL_VIEW)
-    .hexPolygonsData([])
-    .hexPolygonResolution(CONFIG.HEX_POLYGON_RESOLUTION)
-    .hexPolygonMargin(CONFIG.HEX_POLYGON_MARGIN)
-    .hexPolygonUseDots(true)
-    .hexPolygonColor(polygon => getColorForFeature(polygon.properties))
-    .hexPolygonLabel(createHexPolygonLabel)
     .pointsData([])
     .pointColor(getColorForFeature)
     .pointRadius(calculatePointRadius)
@@ -48,6 +42,7 @@ export function initGlobe() {
     .hexSideColor(d => densityColor(d.sumWeight))
     .hexLabel(d => `<b>${d.sumWeight.toLocaleString()}</b> bloom record${d.sumWeight === 1 ? '' : 's'}`)
     .onHexClick(handleHexClick)
+    .onHexHover(handleHexHover)
     // Short column transition: the story advances every 600ms, and the default 1s tween
     // never finished before the next re-aggregation, which is what made autoplay stutter.
     .hexTransitionDuration(250)
@@ -60,6 +55,18 @@ export function initGlobe() {
     controls.autoRotate = true;      // slow idle spin, so the globe feels alive
     controls.autoRotateSpeed = 0.28;
   }
+
+  // globe.gl sizes its canvas once, at init. Follow the window so rotating a phone or
+  // resizing the browser does not leave a stretched or clipped canvas.
+  let resizeQueued = false;
+  window.addEventListener('resize', () => {
+    if (resizeQueued) return;
+    resizeQueued = true;
+    requestAnimationFrame(() => {
+      resizeQueued = false;
+      globe.width(window.innerWidth).height(window.innerHeight);
+    });
+  });
 
   return globe;
 }
@@ -96,6 +103,39 @@ function handleHexClick(hex) {
   });
 }
 
+// Hover highlight, so clicking a hex feels discoverable. Hover only fires on individual hexes,
+// i.e. while the story is paused (the merged mesh used during play is not hoverable).
+// Re-setting hexTopColor would make three-globe re-bin every point and rebuild every hex on
+// each hover change, and hexes of the same color share one material, so instead the hovered
+// mesh gets brightened copies of its own [side, top] materials until the pointer leaves.
+const HOVER_WHITE = new THREE.Color(0xffffff);
+let hoveredHex = null; // { obj, original, highlight }
+
+function clearHexHighlight() {
+  if (!hoveredHex) return;
+  const { obj, original, highlight } = hoveredHex;
+  // A re-render may already have given the mesh fresh materials; only undo our own swap.
+  if (obj.material === highlight) obj.material = original;
+  highlight.forEach(m => m.dispose());
+  hoveredHex = null;
+}
+
+function handleHexHover(hex) {
+  const obj = hex && hex.__threeObj;
+  if (hoveredHex && hoveredHex.obj === obj) return;
+  clearHexHighlight();
+  if (!obj || !Array.isArray(obj.material)) return;
+  const original = obj.material;
+  const highlight = original.map(m => {
+    const c = m.clone();
+    c.color.lerp(HOVER_WHITE, 0.35);
+    if (c.emissive) c.emissive.copy(c.color).multiplyScalar(0.25);
+    return c;
+  });
+  obj.material = highlight;
+  hoveredHex = { obj, original, highlight };
+}
+
 export function getGlobe() {
   return globe;
 }
@@ -122,13 +162,9 @@ export function getColorForFeature(feature) {
 }
 
 export function calculatePointRadius(point) {
-  // Special case for user location marker - make it smaller but still distinctive with pulsating effect
-  if (point.isUserLocation) {
-    const baseRadius = 0.7;
-    const pulseScale = 1 + 0.4 * Math.sin(Date.now() * 0.005); // Pulsating effect
-    return baseRadius * pulseScale;
-  }
-  
+  // The user location marker is a fixed dot; its pulse comes from a ring (see markerRings).
+  if (point.isUserLocation) return 0.6;
+
   return point.Area * CONFIG.POINT_AREA_SCALE + CONFIG.POINT_BASE_RADIUS;
 }
 
@@ -166,15 +202,6 @@ export function createPointFromFeature(feature) {
     propagationSpeed: CONFIG.RING_PROPAGATION_SPEED,
     repeatPeriod: CONFIG.RING_REPEAT_PERIOD
   };
-}
-
-export function createHexPolygonLabel({ properties: data }) {
-  return `
-    <b>${data.Family} - ${data.Genus}</b><br/>
-    Season: <i>${data.Season}</i><br/>
-    Area: <i>${data.Area.toFixed(2)} km²</i><br/>
-    Year: <i>${data.year}</i>
-  `;
 }
 
 // Density heatmap color: perceptual "inferno"-style ramp (deep indigo = sparse ->
@@ -217,21 +244,84 @@ function scheduleHexPurge() {
   requestAnimationFrame(() => requestAnimationFrame(purgeOrphanedMergedHexes));
 }
 
-export function switchToHexMode() {
+// three-globe binds each rendered object onto its datum under one shared key (__threeObj), so
+// one object cannot feed two layers: in Rings mode the rings layer overwrote the points
+// layer's binding, and leaving Rings orphaned every point and ring in the scene (FPS fell to
+// ~17 and never recovered). The rings layer therefore gets its own datum per point: stable
+// (cached) so unchanged rings survive a re-render, and a plain copy of just the fields the
+// ring accessors and getColorForFeature read. (Not prototype-linked: the rings ticker reads
+// d.__threeObj, which would then fall through to the point's own mesh.)
+const ringDatums = new WeakMap();
+function ringDatum(point) {
+  let d = ringDatums.get(point);
+  if (!d) {
+    const { lat, lng, maxR, propagationSpeed, repeatPeriod, Season, Family, Genus, isUserLocation } = point;
+    d = { lat, lng, maxR, propagationSpeed, repeatPeriod, Season, Family, Genus, isUserLocation };
+    ringDatums.set(point, d);
+  }
+  return d;
+}
+
+// The "you are here" marker pulses as a ring in every mode, so it stays visible on the
+// density heatmap too (where it is not a bloom and must not be counted).
+function markerRings() {
+  return userLocationMarker ? [ringDatum(userLocationMarker)] : [];
+}
+
+// Rings pulse only on the blooms recorded in the story's current year (or the latest year
+// shown, when the full range is on screen); every bloom is still drawn as a point. A ring per
+// record meant tens of thousands of animated rings by the later decades, at 2 to 7 FPS.
+function currentRings() {
+  if (!state.ringsEnabled) return markerRings();
+  let year;
+  if (state.timelineActive && state.allYears.length) {
+    year = state.allYears[state.currentTimelineIndex];
+  } else {
+    year = -Infinity;
+    for (const p of state.filteredPoints) if (p.year > year) year = p.year;
+  }
+  return state.filteredPoints.filter(p => p.isUserLocation || p.year === year).map(ringDatum);
+}
+
+// three-globe keeps a ring that left the data for 30s (removeDelay) so its last wave can
+// fade, and while it lingers every later digest walks it and schedules its removal again.
+// The story changes the ring set every tick, so thousands of retired ring groups piled up
+// (Rings ran at ~8 FPS). Once the new set has been digested, detach every ring group that
+// is no longer bound to a current datum; waves already in flight finish and free themselves.
+let ringLayerGroup = null;
+function purgeRetiredRings(attempt = 0) {
   if (!globe) return;
-  globe.hexBinPointsData([]);
-  globe.hexPolygonsData(state.filteredFeatures);
-  globe.pointsData([]);
-  globe.ringsData([]);
-  scheduleHexPurge();
+  if (!ringLayerGroup) {
+    globe.scene().traverse(o => {
+      if (!ringLayerGroup && o.__globeObjType === 'ring' && o.parent) ringLayerGroup = o.parent;
+    });
+  }
+  if (!ringLayerGroup) return;
+  [...ringLayerGroup.children].forEach(child => {
+    const d = child.__data;
+    if (!d || d.__threeObj !== child) ringLayerGroup.remove(child);
+  });
+  // three-globe digests data changes on a timer. After a heavy frame (tearing down tens of
+  // thousands of point meshes) the sweep can run first and find the old rings still bound,
+  // so check again until the layer holds no more rings than the data.
+  if (ringLayerGroup.children.length > globe.ringsData().length && attempt < 8) {
+    setTimeout(() => purgeRetiredRings(attempt + 1), 250);
+  }
+}
+let lastRingCount = 0;
+function setRingsData(data) {
+  const hadRings = lastRingCount > 0;
+  lastRingCount = data.length;
+  globe.ringsData(data);
+  // Nothing can retire when there were no rings (the density story passes [] every tick).
+  if (hadRings) requestAnimationFrame(() => requestAnimationFrame(() => purgeRetiredRings()));
 }
 
 export function switchToPointsMode() {
   if (!globe) return;
   globe.hexBinPointsData([]);
   globe.pointsData(state.filteredPoints);
-  globe.hexPolygonsData([]);
-  globe.ringsData(state.ringsEnabled ? state.filteredPoints : []);
+  setRingsData(currentRings());
   scheduleHexPurge();
 }
 
@@ -256,15 +346,15 @@ export function setHexBinMerged(flag) {
 export function switchToDensityMode() {
   if (!globe) return;
   globe.pointsData([]);
-  globe.hexPolygonsData([]);
-  globe.ringsData([]);
-  globe.hexBinPointsData(state.filteredPoints);
+  setRingsData(markerRings());
+  globe.hexBinPointsData(userLocationMarker
+    ? state.filteredPoints.filter(p => !p.isUserLocation)
+    : state.filteredPoints);
   scheduleHexPurge();
 }
 
 export function refreshGlobeColors() {
   if (!globe) return;
-  globe.hexPolygonsData(globe.hexPolygonsData());
   globe.pointsData(globe.pointsData());
   globe.ringsData(globe.ringsData());
 }
@@ -272,7 +362,7 @@ export function refreshGlobeColors() {
 export function toggleRings() {
   state.ringsEnabled = !state.ringsEnabled;
   if (state.currentDisplayMode === DISPLAY_MODE.POINTS) {
-    globe.ringsData(state.ringsEnabled ? state.filteredPoints : []);
+    setRingsData(currentRings());
     refreshGlobeColors();
   }
 }
@@ -450,82 +540,48 @@ let userLocationMarker = null;
 
 export function setUserLocationMarker(lat, lng) {
   if (!globe) return;
-  
+
   // Remove existing marker if any
   removeUserLocationMarker();
-  
-  // Create a user location point object
+
+  // The marker rides along in state.pointsData so the filters keep it, and pulses as a
+  // ring (maxR / propagationSpeed / repeatPeriod are read by the rings layer).
   const userLocationPoint = {
     lat: lat,
     lng: lng,
     isUserLocation: true,
     Site: 'Your Location',
     Family: 'User',
-    Genus: 'Location'
+    Genus: 'Location',
+    maxR: 3,
+    propagationSpeed: 2,
+    repeatPeriod: 900
   };
-  
-  // Add to state.pointsData so it's included in filters
+
   if (!state.pointsData.some(point => point.isUserLocation)) {
     state.pointsData.push(userLocationPoint);
   }
-  
+
+  // Store reference before re-rendering, so the layers pick up the marker ring
+  userLocationMarker = userLocationPoint;
+
   // Re-apply timeline filter to include the user location
   import('./components/timeline.js').then(module => {
     module.applyTimelineFilter();
   });
-  
+
   // Focus camera on user location
   globe.pointOfView({ lat, lng, altitude: 2 }, 1000);
-  
-  // Store reference for removal
-  userLocationMarker = userLocationPoint;
-  
-  // Start pulsating animation
-  startUserLocationAnimation();
 }
 
 export function removeUserLocationMarker() {
   if (!globe || !userLocationMarker) return;
-  
-  // Stop the animation
-  stopUserLocationAnimation();
-  
-  // Remove from state.pointsData
+
+  userLocationMarker = null;
   state.pointsData = state.pointsData.filter(point => !point.isUserLocation);
-  
+
   // Re-apply timeline filter to update the display
   import('./components/timeline.js').then(module => {
     module.applyTimelineFilter();
   });
-  userLocationMarker = null;
-}
-
-// Animation variables
-let userLocationAnimationId = null;
-
-function startUserLocationAnimation() {
-  if (userLocationAnimationId) return; // Already animating
-  
-  function animate() {
-    if (!userLocationMarker || !globe) {
-      userLocationAnimationId = null;
-      return;
-    }
-    
-    // Trigger a re-render of points to show the pulsating effect
-    if (state.currentDisplayMode === DISPLAY_MODE.POINTS) {
-      globe.pointsData(state.filteredPoints); // Use filteredPoints from state
-    }
-    
-    userLocationAnimationId = requestAnimationFrame(animate);
-  }
-  
-  userLocationAnimationId = requestAnimationFrame(animate);
-}
-
-function stopUserLocationAnimation() {
-  if (userLocationAnimationId) {
-    cancelAnimationFrame(userLocationAnimationId);
-    userLocationAnimationId = null;
-  }
 }

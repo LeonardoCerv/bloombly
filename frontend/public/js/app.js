@@ -1,5 +1,5 @@
 import { initGlobe, setNightSkyBackground, loadCountryBorders } from './globe.js';
-import { initTopSelector } from './components/topSelector.js';
+import { initTopSelector, hideLoadStatus } from './components/topSelector.js';
 import { initUnifiedSidebar, loadDefaultDataset } from './components/unifiedSidebar.js';
 import { initTimeline } from './components/timeline.js';
 import { initDescriptionCard } from './components/descriptionCard.js';
@@ -24,12 +24,15 @@ async function init() {
   initGlobe();
   setNightSkyBackground();
   
-  // Load country borders
-  await loadCountryBorders();
+  // Country borders and the bloom dataset are independent, so fetch them side by side.
+  // The dataset load also starts the autoplaying 50-year story.
+  const [, loaded] = await Promise.all([loadCountryBorders(), loadDefaultDataset()]);
 
-  // Auto-load the default dataset so the globe is populated on landing; this also starts
-  // the autoplaying 50-year story.
-  await loadDefaultDataset();
+  // Keep the loading line up until a frame with data has actually been drawn. On failure
+  // the error stays visible in its place.
+  if (loaded) {
+    requestAnimationFrame(() => requestAnimationFrame(hideLoadStatus));
+  }
 }
 
 // Start the application when DOM is ready
