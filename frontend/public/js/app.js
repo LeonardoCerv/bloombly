@@ -8,13 +8,9 @@ import { initDescriptionCard } from './components/descriptionCard.js';
 import { initMetricsCard } from './components/metricsCard.js';
 import { initAdvancedFilters } from './components/advancedFilters.js';
 import { initVizLegend } from './components/legend.js';
-import { showIntro } from './components/intro.js';
 
 // Initialize the application
 async function init() {
-  // Cinematic intro over the loading globe
-  showIntro();
-
   // Initialize components
   initTopSelector();
   initUnifiedSidebar();
