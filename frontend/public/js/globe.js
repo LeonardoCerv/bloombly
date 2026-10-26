@@ -47,6 +47,7 @@ export function initGlobe() {
     .hexTopColor(d => densityColor(d.sumWeight))
     .hexSideColor(d => densityColor(d.sumWeight))
     .hexLabel(d => `<b>${d.sumWeight.toLocaleString()}</b> bloom records`)
+    .onHexClick(handleHexClick)
     .hexBinPointsData([]);
 
   // controls() can be briefly unavailable until the renderer has a sized container;
@@ -64,6 +65,31 @@ function handlePointClick(point, event, coords) {
   // Import the showDescriptionCard function dynamically
   import('./components/descriptionCard.js').then(module => {
     module.showDescriptionCard(point, event, coords);
+  });
+}
+
+// Clicking a density hexbin shows the dominant bloom in that area (brings the species
+// images back into the density view): most common genus + peak season + how many.
+function handleHexClick(hex) {
+  const pts = hex && hex.points;
+  if (!pts || !pts.length) return;
+  const genusCount = {}, seasonCount = {}, genusFamily = {};
+  pts.forEach(p => {
+    if (p.Genus) { genusCount[p.Genus] = (genusCount[p.Genus] || 0) + 1; genusFamily[p.Genus] = p.Family; }
+    if (p.Season) seasonCount[p.Season] = (seasonCount[p.Season] || 0) + 1;
+  });
+  const top = obj => Object.keys(obj).sort((a, b) => obj[b] - obj[a])[0];
+  const topGenus = top(genusCount);
+  const lat = pts.reduce((s, p) => s + (p.lat || 0), 0) / pts.length;
+  const lng = pts.reduce((s, p) => s + (p.lng || 0), 0) / pts.length;
+  import('./components/descriptionCard.js').then(module => {
+    module.showDescriptionCard({
+      Genus: topGenus,
+      Family: genusFamily[topGenus],
+      Season: top(seasonCount),
+      lat, lng,
+      binCount: hex.sumWeight != null ? hex.sumWeight : pts.length
+    });
   });
 }
 
@@ -177,7 +203,7 @@ export function createHexPolygonLabel({ properties: data }) {
 
 // Density heatmap color: perceptual "inferno"-style ramp (deep indigo = sparse ->
 // magenta -> warm gold = dense), log-scaled so a handful of bins don't wash out the rest.
-const DENSITY_STOPS = [[20, 11, 52], [120, 28, 109], [221, 52, 76], [252, 176, 60]];
+const DENSITY_STOPS = [[13, 59, 102], [42, 157, 143], [231, 111, 158], [255, 209, 232]];
 function densityColor(count) {
   const t = Math.max(0, Math.min(1, Math.log10(count + 1) / 2.5));
   const seg = t * (DENSITY_STOPS.length - 1);

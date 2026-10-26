@@ -109,7 +109,7 @@ function attachUnifiedSidebarEventListeners() {
   
   // Point color switcher
   const pointColorSwitcher = document.getElementById('pointColorSwitcher');
-  const pointColorOptions = ['By Season', 'Climate Shift', 'By Family', 'By Genus', 'Single Color'];
+  const pointColorOptions = ['By Season', 'By Family', 'By Genus', 'Single Color'];
   
   document.querySelectorAll('[data-target="pointColorSwitcher"]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -172,19 +172,14 @@ function renderDatasetContent() {
   
   const datasetTabContent = document.getElementById('datasetTabContent');
   datasetTabContent.innerHTML = `
-    <!-- Dataset Data Controls -->
-    <div class="filter-section">
-      <h4>Dataset</h4>
-      <select id="datasetSelect" style="width: 100%; padding: 4px; background: #121418; color: #FFFFFF; border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 6px; outline: none;">
-        <option value="flowering_sites">🌍 Global Flowering · 1975–2025</option>
-        <option value="blooms">🌸 Japan Cherry Blossoms · climate</option>
+    <!-- Single dataset auto-loads on launch; chooser hidden (kept for the auto-load machinery) -->
+    <div class="filter-section" style="display: none;">
+      <select id="datasetSelect">
+        <option value="flowering_sites">Global Flowering · 1975–2025</option>
       </select>
-      
-      <button id="loadDatasetBtn" class="load-dataset-btn">
-        Load Data
-      </button>
+      <button id="loadDatasetBtn" class="load-dataset-btn">Load Data</button>
     </div>
-    
+
     <!-- Filter Switcher (Hidden until data loaded) -->
     <div id="filterSwitcherSection" style="display: none;">
       <div class="filter-section">
@@ -386,12 +381,10 @@ function handlePointColorChange(index) {
   if (index === 0) {
     state.currentColorMode = COLOR_MODE.SEASON;
   } else if (index === 1) {
-    state.currentColorMode = COLOR_MODE.CLIMATE;
-  } else if (index === 2) {
     state.currentColorMode = COLOR_MODE.FAMILY;
-  } else if (index === 3) {
+  } else if (index === 2) {
     state.currentColorMode = COLOR_MODE.GENUS;
-  } else if (index === 4) {
+  } else if (index === 3) {
     state.currentColorMode = COLOR_MODE.DEFAULT;
   }
 
@@ -431,7 +424,6 @@ async function loadDatasetData() {
   }
   
   const datasetPaths = {
-    'blooms': '../data/processed/blooms.geojson',
     'flowering_sites': '../data/geojson/flowering_sites.sample.geojson'
   };
   

@@ -29,9 +29,12 @@ export function showDescriptionCard(point, event, coords) {
   const seasonClass = season ? `dc-season-${season.toLowerCase()}` : '';
   const latStr = (typeof point.lat === 'number') ? `${point.lat.toFixed(2)}°` : '—';
   const lngStr = (typeof point.lng === 'number') ? `${point.lng.toFixed(2)}°` : '—';
-  const common = point.CommonName ? `<div class="dc-common">${point.CommonName}</div>` : '';
+  const isBin = point.binCount != null; // a clicked density hexbin (area summary)
+  const common = isBin
+    ? `<div class="dc-common">Most common bloom in this area</div>`
+    : (point.CommonName ? `<div class="dc-common">${point.CommonName}</div>` : '');
 
-  // Climate signal (cherry-blossom dataset): days earlier/later than the historical baseline
+  // Climate signal (days earlier/later than the historical baseline), when present
   let devStat = '';
   if (point.deviation != null && !isNaN(Number(point.deviation))) {
     const d = Number(point.deviation);
@@ -42,6 +45,26 @@ export function showDescriptionCard(point, event, coords) {
           <span class="dc-k">Bloom vs. baseline</span>
           <span class="dc-v ${cls}">${label}</span>
         </div>`;
+  }
+
+  const statGroup = (k, v) => `
+        <div class="dc-stat">
+          <span class="dc-k">${k}</span>
+          <span class="dc-v">${v}</span>
+        </div>`;
+
+  let statsHtml;
+  if (isBin) {
+    statsHtml = `${devStat}
+        ${statGroup('Blooms here', Number(point.binCount).toLocaleString())}
+        ${statGroup('Peak season', season || '—')}
+        ${statGroup('Location', `${latStr}, ${lngStr}`)}`;
+  } else {
+    statsHtml = `${devStat}
+        ${statGroup('Year', point.year != null ? point.year : '—')}
+        ${statGroup('Bloom area', point.Area != null ? point.Area.toFixed(0) + ' km²' : '—')}
+        ${statGroup('Location', `${latStr}, ${lngStr}`)}
+        ${point.confidence != null ? statGroup('Confidence', (point.confidence * 100).toFixed(0) + '%') : ''}`;
   }
 
   card.innerHTML = `
@@ -63,24 +86,7 @@ export function showDescriptionCard(point, event, coords) {
         <div class="dc-family"><span class="dc-dot" style="background:${familyColor};"></span>${point.Family || 'N/A'}</div>
       </div>
 
-      <div class="dc-stats">${devStat}
-        <div class="dc-stat">
-          <span class="dc-k">Year</span>
-          <span class="dc-v">${point.year != null ? point.year : '—'}</span>
-        </div>
-        <div class="dc-stat">
-          <span class="dc-k">Bloom area</span>
-          <span class="dc-v">${point.Area != null ? point.Area.toFixed(0) + ' km²' : '—'}</span>
-        </div>
-        <div class="dc-stat">
-          <span class="dc-k">Location</span>
-          <span class="dc-v">${latStr}, ${lngStr}</span>
-        </div>
-        ${point.confidence != null ? `
-        <div class="dc-stat">
-          <span class="dc-k">Confidence</span>
-          <span class="dc-v dc-conf">${(point.confidence * 100).toFixed(0)}%</span>
-        </div>` : ''}
+      <div class="dc-stats">${statsHtml}
       </div>
     </div>
   `;
