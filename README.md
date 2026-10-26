@@ -47,15 +47,11 @@ Pause it at any year, click a column, and you meet the plant that blooms most of
 
 ## How it started
 
-Bloombly was built in a weekend. It began at the [NASA Space Apps Challenge](https://www.spaceappschallenge.org/) on October 4 and 5, 2025, as an answer to the BloomWatch challenge: use NASA Earth observations to build a dynamic tool that detects or displays plant blooming events around the world.
+Bloombly was built in a weekend. It began at [NASA Space Apps Challenge](https://www.spaceappschallenge.org/) Querétaro on October 4 and 5, 2025, as an answer to the BloomWatch challenge: use NASA Earth observations to build a dynamic tool that detects or displays plant blooming events around the world.
 
-Three friends from Querétaro, Mexico took it on:
+The team: [Leonardo Cervantes](https://github.com/LeonardoCerv), [Enrique Ayala](https://github.com/KIKW12), [Carlos Vazquez](https://github.com/CsVazquezz), Charbel Chavez, Ana Pao Hernandez and Lucca Trasloheros.
 
-- [Leonardo Cervantes](https://github.com/LeonardoCerv): the globe and the data. Turned the raw flowering datasets into GeoJSON and built the three.js visualization that became the face of the project.
-- [KIKW12](https://github.com/KIKW12): the prediction API. Wrote the Flask service and the Google Earth Engine integration that feeds satellite features to the model.
-- [Carlos Martinez Vazquez](https://github.com/CsVazquezz): the machine-learning pipeline. Cleaned the observations, engineered the features and trained the classifier.
-
-The 48-hour version had all three pieces wired together: a forecasting API, a trained model and a globe that could ask it for predictions. After the hackathon, Leonardo kept going with the part that had the most to say, the historical record. The globe was rebuilt around the full 50-year dataset, the cumulative story, the density heatmap and the species cards, and the prediction UI was retired until the model can be hosted properly (its code is still here, see the machine-learning section).
+The 48-hour version had everything wired together: a forecasting API, a trained model and a globe that could ask it for predictions. After the hackathon, Leonardo kept going with the part that had the most to say, the historical record. The globe was rebuilt around the full 50-year dataset, the cumulative story, the density heatmap and the species cards, and the prediction UI was retired until the model can be hosted properly (its code is still here, see the machine-learning section).
 
 ## How it works
 
