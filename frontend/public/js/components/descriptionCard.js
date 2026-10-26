@@ -29,6 +29,20 @@ export function showDescriptionCard(point, event, coords) {
   const seasonClass = season ? `dc-season-${season.toLowerCase()}` : '';
   const latStr = (typeof point.lat === 'number') ? `${point.lat.toFixed(2)}°` : '—';
   const lngStr = (typeof point.lng === 'number') ? `${point.lng.toFixed(2)}°` : '—';
+  const common = point.CommonName ? `<div class="dc-common">${point.CommonName}</div>` : '';
+
+  // Climate signal (cherry-blossom dataset): days earlier/later than the historical baseline
+  let devStat = '';
+  if (point.deviation != null && !isNaN(Number(point.deviation))) {
+    const d = Number(point.deviation);
+    const label = d < 0 ? `${Math.abs(d).toFixed(0)} days earlier` : (d > 0 ? `${d.toFixed(0)} days later` : 'on baseline');
+    const cls = d < 0 ? 'dc-earlier' : (d > 0 ? 'dc-later' : '');
+    devStat = `
+        <div class="dc-stat dc-stat-wide">
+          <span class="dc-k">Bloom vs. baseline</span>
+          <span class="dc-v ${cls}">${label}</span>
+        </div>`;
+  }
 
   card.innerHTML = `
     <button class="close-btn" id="closeDescriptionCard" aria-label="Close">✕</button>
@@ -45,10 +59,11 @@ export function showDescriptionCard(point, event, coords) {
     <div class="dc-body">
       <div class="dc-title-row">
         <h3 class="dc-genus">${point.Genus || 'Unknown'}</h3>
+        ${common}
         <div class="dc-family"><span class="dc-dot" style="background:${familyColor};"></span>${point.Family || 'N/A'}</div>
       </div>
 
-      <div class="dc-stats">
+      <div class="dc-stats">${devStat}
         <div class="dc-stat">
           <span class="dc-k">Year</span>
           <span class="dc-v">${point.year != null ? point.year : '—'}</span>

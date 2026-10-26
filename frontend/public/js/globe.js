@@ -121,6 +121,11 @@ export function createPointFromFeature(feature) {
     Season: properties.Season,
     Area: properties.Area,
     year: properties.year,
+    // Optional richer fields (present in the cherry-blossom dataset)
+    Species: properties.Species,
+    CommonName: properties.CommonName,
+    deviation: properties.DeviationFromBaseline,
+    temperature: properties.Temperature,
     maxR: properties.Area * CONFIG.RING_AREA_SCALE + CONFIG.RING_BASE_RADIUS,
     propagationSpeed: CONFIG.RING_PROPAGATION_SPEED,
     repeatPeriod: CONFIG.RING_REPEAT_PERIOD

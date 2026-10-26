@@ -189,10 +189,8 @@ function renderDatasetContent() {
     <div class="filter-section">
       <h4>Dataset</h4>
       <select id="datasetSelect" style="width: 100%; padding: 4px; background: #121418; color: #FFFFFF; border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 6px; outline: none;">
-        <option value="">-- Choose Dataset --</option>
-        <option value="blooms">Bloom Observations</option>
-        <option value="flowering_sites">Flowering Sites (30k sample)</option>
-        <option value="wildflower_aoi">Wildflower AOI</option>
+        <option value="flowering_sites">🌍 Global Flowering · 1975–2025</option>
+        <option value="blooms">🌸 Japan Cherry Blossoms · climate</option>
       </select>
       
       <button id="loadDatasetBtn" class="load-dataset-btn">
@@ -449,8 +447,7 @@ async function loadDatasetData() {
   
   const datasetPaths = {
     'blooms': '../data/processed/blooms.geojson',
-    'flowering_sites': '../data/geojson/flowering_sites.sample.geojson',
-    'wildflower_aoi': '../data/geojson/WildflowerBlooms_AreaOfInterest.geojson'
+    'flowering_sites': '../data/geojson/flowering_sites.sample.geojson'
   };
   
   const filePath = datasetPaths[datasetName];
@@ -484,7 +481,14 @@ async function loadDatasetData() {
       throw new Error('No valid features found in dataset');
     }
 
-    const { createPointFromFeature, switchToPointsMode } = await import('../globe.js');
+    // Normalize schema across datasets: the cherry-blossom set uses `Year` (capital),
+    // the global set uses `year`. Canonicalize to lowercase `year` so the timeline works.
+    allFeatures.forEach(f => {
+      const p = f.properties;
+      if (p.year == null && p.Year != null) p.year = p.Year;
+    });
+
+    const { createPointFromFeature, switchToPointsMode, getGlobe } = await import('../globe.js');
     const { initializeFamilyColors } = await import('../state.js');
     const { buildTimelineSteps } = await import('./timeline.js');
     const { showAdvancedFilters } = await import('./advancedFilters.js');
@@ -506,7 +510,18 @@ async function loadDatasetData() {
     createFilterUI();
     updateLegend();
     switchToPointsMode();
-    
+
+    // Fly the camera to the data's centroid so it's actually in view (e.g. Japan for cherry blossoms)
+    try {
+      const g = getGlobe();
+      const pts = state.pointsData;
+      if (g && pts.length) {
+        const avgLat = pts.reduce((s, p) => s + (p.lat || 0), 0) / pts.length;
+        const avgLng = pts.reduce((s, p) => s + (p.lng || 0), 0) / pts.length;
+        g.pointOfView({ lat: avgLat, lng: avgLng, altitude: 2 }, 1200);
+      }
+    } catch (e) { /* non-fatal */ }
+
     // Show filter sections after data is loaded
     document.getElementById('filterSwitcherSection').style.display = 'block';
     
