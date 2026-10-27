@@ -22,10 +22,14 @@ npx vercel          # first run: log in + link the project
 npx vercel --prod   # production deploy
 ```
 
+The production site lives at **https://bloombly.vercel.app**. The repo is linked to that
+Vercel project from `frontend/public` (the `.vercel/` folder is git-ignored), so
+`npx vercel --prod` from there redeploys it.
+
 After deploying:
-- Add the live URL near the top of `README.md`.
-- *(Optional)* Point `bloomly.earth` at the new deploy in **Cloudflare DNS**, and set
-  Cloudflare **SSL/TLS mode = Full** so the custom domain stops throwing the SSL error.
+- Keep the live URL near the top of `README.md` current.
+- *(Optional)* A custom domain can be added in the Vercel project settings; point its DNS
+  at Vercel (`A 76.76.21.21` for the apex, `CNAME cname.vercel-dns.com` for `www`).
 
 Also works on Netlify / Cloudflare Pages / GitHub Pages. Same idea: serve `frontend/public`.
 

@@ -12,6 +12,7 @@
 [![NASA Space Apps 2025](https://img.shields.io/badge/NASA%20Space%20Apps%202025-0B3D91?logo=nasa&logoColor=white)](https://www.spaceappschallenge.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
+[![Live site](https://img.shields.io/badge/Live%20site-bloombly.vercel.app-2a9d8f?logo=vercel&logoColor=white)](https://bloombly.vercel.app)
 [![Watch the demo](https://img.shields.io/badge/Watch%20the%20demo-YouTube-FF0000?logo=youtube&logoColor=white)](https://youtu.be/On70ydW8hGE)
 
 ![Bloombly's density globe: hexagonal columns of bloom records rising from the continents, colored from deep blue through teal and magenta to pink, on a night-sky backdrop](docs/screenshots/hero.png)
